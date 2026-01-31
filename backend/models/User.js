@@ -189,7 +189,6 @@ class User {
     }
   }
 
-  // Link Google account to existing user
   static async linkGoogleAccount(userId, googleId, profilePicture) {
     try {
       const query = `
@@ -261,24 +260,6 @@ class User {
         totalCycles: 0,
         totalSymptomLogs: 0
       };
-    }
-  }
-
-  // Delete user (soft delete - mark as deleted)
-  static async softDelete(userId) {
-    try {
-      const query = `
-        UPDATE users 
-        SET 
-          deleted_at = CURRENT_TIMESTAMP,
-          email = CONCAT('deleted_', id, '_', email)
-        WHERE id = $1
-      `;
-
-      await pool.query(query, [userId]);
-    } catch (error) {
-      console.error('Error soft deleting user:', error);
-      throw error;
     }
   }
 }

@@ -2,8 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/glass_card.dart';
 
 class LogScreen extends StatefulWidget {
   @override
@@ -232,57 +234,99 @@ class _LogScreenState extends State<LogScreen>
     }
   }
   
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.almostWhite,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: EdgeInsets.all(AppTheme.spaceL),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Log',
-                    style: Theme.of(context).textTheme.displayLarge,
-                  ),
-                  SizedBox(height: AppTheme.spaceS),
-                  Text(
-                    'Track your cycle and symptoms',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-            ),
-            
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppTheme.spaceL),
-              child: _buildToggleButtons(),
-            ),
-            
-            SizedBox(height: AppTheme.spaceL),
-            
-            Expanded(
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(horizontal: AppTheme.spaceL),
-                    child: _isLoggingPeriod
-                        ? _buildPeriodLogging()
-                        : _buildSymptomLogging(),
+      body: Stack(
+        children: [
+          // Animated Background Blobs
+          Positioned(
+            top: -100,
+            left: -50,
+            child: _buildBlob(AppTheme.primaryPink.withOpacity(0.2), 300),
+          ),
+          Positioned(
+            bottom: 100,
+            right: -100,
+            child: _buildBlob(AppTheme.lavender.withOpacity(0.2), 250),
+          ),
+          Positioned(
+            top: 300,
+            left: 100,
+            child: _buildBlob(AppTheme.peach.withOpacity(0.15), 200),
+          ),
+
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.all(AppTheme.spaceL),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Log',
+                        style: Theme.of(context).textTheme.displayLarge,
+                      ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
+                      SizedBox(height: AppTheme.spaceS),
+                      Text(
+                        'Track your cycle and symptoms',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ).animate().fadeIn(delay: 200.ms),
+                    ],
                   ),
                 ),
-              ),
+                
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppTheme.spaceL),
+                  child: _buildToggleButtons().animate().fadeIn(delay: 400.ms).slideY(begin: 0.2),
+                ),
+                
+                SizedBox(height: AppTheme.spaceL),
+                
+                Expanded(
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.symmetric(horizontal: AppTheme.spaceL),
+                        child: _isLoggingPeriod
+                            ? _buildPeriodLogging()
+                            : _buildSymptomLogging(),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+
+  Widget _buildBlob(Color color, double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+        boxShadow: [
+          BoxShadow(
+            color: color,
+            blurRadius: 60,
+            spreadRadius: 20,
+          ),
+        ],
+      ),
+    ).animate(onPlay: (c) => c.repeat(reverse: true))
+     .scale(begin: Offset(0.9, 0.9), end: Offset(1.1, 1.1), duration: 5.seconds);
+  }
+
   
   Widget _buildToggleButtons() {
     return Container(
@@ -398,53 +442,50 @@ class _LogScreenState extends State<LogScreen>
   Widget _buildPeriodLogging() {
     return Column(
       children: [
-        Card(
-          child: InkWell(
-            onTap: _selectDate,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            child: Padding(
-              padding: EdgeInsets.all(AppTheme.spaceL),
-              child: Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.blushPink,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    ),
-                    child: Icon(
-                      Icons.calendar_today,
-                      color: AppTheme.primaryPink,
-                      size: 24,
-                    ),
+        GlassCard(
+          onTap: _selectDate,
+          child: Padding(
+            padding: EdgeInsets.all(AppTheme.spaceL),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.blushPink,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                   ),
-                  SizedBox(width: AppTheme.spaceM),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Date',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ],
-                    ),
+                  child: Icon(
+                    Icons.calendar_today,
+                    color: AppTheme.primaryPink,
+                    size: 24,
                   ),
-                  Icon(Icons.chevron_right, color: AppTheme.textLight),
-                ],
-              ),
+                ),
+                SizedBox(width: AppTheme.spaceM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Date',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: AppTheme.textLight),
+              ],
             ),
           ),
-        ),
+        ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.2),
         
         SizedBox(height: AppTheme.spaceM),
         
-        Card(
+        GlassCard(
           child: Padding(
             padding: EdgeInsets.all(AppTheme.spaceL),
             child: Column(
@@ -467,7 +508,7 @@ class _LogScreenState extends State<LogScreen>
               ],
             ),
           ),
-        ),
+        ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.2),
         
         SizedBox(height: AppTheme.spaceXL),
         
@@ -558,7 +599,7 @@ class _LogScreenState extends State<LogScreen>
           Colors.blue,
         ),
         
-        Card(
+        GlassCard(
           child: Padding(
             padding: EdgeInsets.all(AppTheme.spaceL),
             child: Column(
@@ -603,7 +644,7 @@ class _LogScreenState extends State<LogScreen>
               ],
             ),
           ),
-        ),
+        ).animate().fadeIn(delay: 700.ms).slideY(begin: 0.2),
         
         SizedBox(height: AppTheme.spaceXL),
         
@@ -712,7 +753,7 @@ class _LogScreenState extends State<LogScreen>
     IconData icon,
     Color accentColor,
   ) {
-    return Card(
+    return GlassCard(
       margin: EdgeInsets.only(bottom: AppTheme.spaceM),
       child: Padding(
         padding: EdgeInsets.all(AppTheme.spaceL),
@@ -775,6 +816,6 @@ class _LogScreenState extends State<LogScreen>
           ],
         ),
       ),
-    );
+    ).animate().fadeIn(duration: 400.ms).slideX();
   }
 }

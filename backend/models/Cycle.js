@@ -38,6 +38,11 @@ class Cycle {
         throw new Error('No valid fields to update');
       }
 
+      // Calculate cycle_length when end_date is updated
+      if (updates.end_date) {
+        fields.push(`cycle_length = (end_date - start_date)`);
+      }
+
       values.push(id, userId);
       const sql = `
         UPDATE cycles
@@ -145,10 +150,15 @@ class Cycle {
           AVG(cycle_length)::NUMERIC(10,2) as avg_length,
           STDDEV(cycle_length)::NUMERIC(10,2) as std_dev,
           COUNT(*) as count
-        FROM cycles
-        WHERE user_id = $1 AND cycle_length IS NOT NULL AND cycle_length BETWEEN 14 AND 45
-        ORDER BY start_date DESC
-        LIMIT $2
+        FROM (
+          SELECT cycle_length 
+          FROM cycles
+          WHERE user_id = $1 
+            AND cycle_length IS NOT NULL 
+            AND cycle_length BETWEEN 14 AND 45
+          ORDER BY start_date DESC
+          LIMIT $2
+        ) recent_cycles
       `;
 
       const result = await query(sql, [userId, limit]);

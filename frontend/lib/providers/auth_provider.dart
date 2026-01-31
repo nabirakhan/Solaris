@@ -1,4 +1,5 @@
 // File: frontend/lib/providers/auth_provider.dart
+import 'dart:io'; // Keep this for mobile
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/api_service.dart';
@@ -135,6 +136,23 @@ class AuthProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return false;
+    }
+  }
+  
+  // In auth_provider.dart, keep the original:
+  Future<Map<String, dynamic>?> uploadProfilePicture(File imageFile) async {
+    try {
+      final result = await _apiService.uploadProfilePicture(imageFile);
+      
+      if (result['user'] != null) {
+        _user = result['user'];
+        notifyListeners();
+      }
+      
+      return result;
+    } catch (e) {
+      print('Error uploading profile picture: $e');
+      return null;
     }
   }
   

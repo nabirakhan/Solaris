@@ -97,30 +97,45 @@ class CycleProvider with ChangeNotifier {
   
   /// Request AI analysis for personalized insights
   Future<bool> requestAIAnalysis() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  _isLoading = true;
+  _error = null;
+  notifyListeners();
+  
+  try {
+    final result = await _apiService.requestAnalysis();
     
-    try {
-      final result = await _apiService.requestAnalysis();
+    // Debug log to see what's returned
+    print('AI Analysis Response: $result');
+    
+    // Check for success in various possible response formats
+    final success = 
+        result['success'] == true ||
+        result['status'] == 'success' ||
+        result['hasData'] == true ||
+        result['message']?.toLowerCase().contains('success') == true;
+    
+    if (success) {
+      // Force reload insights to get updated data
+      await loadCurrentInsights();
+      await loadCycles(); // Also reload cycles
       
-      if (result['hasData'] != false) {
-        await loadCurrentInsights();
-        _isLoading = false;
-        return true;
-      } else {
-        _error = result['message'] ?? 'AI service unavailable';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-    } catch (e) {
-      _error = 'Error requesting analysis: $e';
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } else {
+      _error = result['message'] ?? result['error'] ?? 'Analysis failed';
       _isLoading = false;
       notifyListeners();
       return false;
     }
+  } catch (e) {
+    print('AI Analysis Error: $e');
+    _error = 'Error requesting analysis: $e';
+    _isLoading = false;
+    notifyListeners();
+    return false;
   }
+}
   
   /// Log symptoms for a specific date
   Future<bool> logSymptoms({

@@ -4,31 +4,60 @@ const { query } = require('../config/database');
 class SymptomLog {
   static async upsert({ userId, date, symptoms, sleepHours, stressLevel, notes }) {
     try {
-      const sql = `
-        INSERT INTO symptom_logs (user_id, date, symptoms, sleep_hours, stress_level, notes)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (user_id, date)
-        DO UPDATE SET
-          symptoms = EXCLUDED.symptoms,
-          sleep_hours = EXCLUDED.sleep_hours,
-          stress_level = EXCLUDED.stress_level,
-          notes = EXCLUDED.notes,
-          updated_at = CURRENT_TIMESTAMP
-        RETURNING id, user_id, date, symptoms, sleep_hours, stress_level, 
-                  notes, created_at, updated_at
+      // First, try to find existing log for this date
+      const findSql = `
+        SELECT id FROM symptom_logs
+        WHERE user_id = $1 AND date = $2
       `;
-
-      const values = [
-        userId,
-        date,
-        JSON.stringify(symptoms),
-        sleepHours || null,
-        stressLevel || null,
-        notes || null
-      ];
-
-      const result = await query(sql, values);
-      return result.rows[0];
+      
+      const existing = await query(findSql, [userId, date]);
+      
+      if (existing.rows.length > 0) {
+        // Update existing
+        const updateSql = `
+          UPDATE symptom_logs
+          SET symptoms = $1,
+              sleep_hours = $2,
+              stress_level = $3,
+              notes = $4,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE user_id = $5 AND date = $6
+          RETURNING id, user_id, date, symptoms, sleep_hours, stress_level, 
+                    notes, created_at, updated_at
+        `;
+        
+        const values = [
+          JSON.stringify(symptoms),
+          sleepHours || null,
+          stressLevel || null,
+          notes || null,
+          userId,
+          date
+        ];
+        
+        const result = await query(updateSql, values);
+        return result.rows[0];
+      } else {
+        // Insert new
+        const insertSql = `
+          INSERT INTO symptom_logs (user_id, date, symptoms, sleep_hours, stress_level, notes)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING id, user_id, date, symptoms, sleep_hours, stress_level, 
+                    notes, created_at, updated_at
+        `;
+        
+        const values = [
+          userId,
+          date,
+          JSON.stringify(symptoms),
+          sleepHours || null,
+          stressLevel || null,
+          notes || null
+        ];
+        
+        const result = await query(insertSql, values);
+        return result.rows[0];
+      }
     } catch (error) {
       throw error;
     }

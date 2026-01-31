@@ -1,14 +1,12 @@
-// File: frontend/lib/services/api_service.dart
+// File: lib/services/api_service.dart
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart'; // For kIsWeb
 
 class ApiService {
-  // CRITICAL: Make sure this is correct for your device
-  // Android Emulator: 'http://10.0.2.2:5000/api'
-  // Real Device: 'http://192.168.100.9:5000/api'
-  // Web (Flutter web running on localhost): 'http://192.168.100.9:5000/api'
-  static const String baseUrl = 'http://192.168.100.9:5000/api'; // Update based on device
+  static const String baseUrl = 'http://192.168.100.9:5000/api';
   
   Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -33,7 +31,7 @@ class ApiService {
     };
   }
   
-  // SIGNUP - POST /api/auth/signup
+  // AUTHENTICATION
   Future<Map<String, dynamic>> signup({
     required String email,
     required String password,
@@ -41,8 +39,6 @@ class ApiService {
     String? dateOfBirth,
   }) async {
     final url = Uri.parse('$baseUrl/auth/signup');
-    
-    print('🔵 Signup URL: $url');
     
     try {
       final response = await http.post(
@@ -56,9 +52,6 @@ class ApiService {
         }),
       ).timeout(Duration(seconds: 30));
       
-      print('🔵 Signup Response: ${response.statusCode}');
-      print('🔵 Signup Body: ${response.body}');
-      
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await saveToken(data['token']);
@@ -68,19 +61,15 @@ class ApiService {
         throw Exception(error['error'] ?? 'Signup failed');
       }
     } catch (e) {
-      print('❌ Signup Error: $e');
       rethrow;
     }
   }
   
-  // LOGIN - POST /api/auth/login
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
     final url = Uri.parse('$baseUrl/auth/login');
-    
-    print('🔵 Login URL: $url');
     
     try {
       final response = await http.post(
@@ -92,9 +81,6 @@ class ApiService {
         }),
       ).timeout(Duration(seconds: 30));
       
-      print('🔵 Login Response: ${response.statusCode}');
-      print('🔵 Login Body: ${response.body}');
-      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await saveToken(data['token']);
@@ -104,12 +90,10 @@ class ApiService {
         throw Exception(error['error'] ?? 'Login failed');
       }
     } catch (e) {
-      print('❌ Login Error: $e');
       rethrow;
     }
   }
   
-  // GOOGLE SIGN-IN (Mobile) - POST /api/auth/google/mobile
   Future<Map<String, dynamic>> googleSignIn({
     required String email,
     required String name,
@@ -117,8 +101,6 @@ class ApiService {
     required String googleId,
   }) async {
     final url = Uri.parse('$baseUrl/auth/google/mobile');
-    
-    print('🔵 Google Mobile URL: $url');
     
     try {
       final response = await http.post(
@@ -132,9 +114,6 @@ class ApiService {
         }),
       ).timeout(Duration(seconds: 30));
       
-      print('🔵 Google Response: ${response.statusCode}');
-      print('🔵 Google Body: ${response.body}');
-      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await saveToken(data['token']);
@@ -144,12 +123,10 @@ class ApiService {
         throw Exception(error['error'] ?? 'Google sign-in failed');
       }
     } catch (e) {
-      print('❌ Google Sign-In Error: $e');
       rethrow;
     }
   }
   
-  // GET CURRENT USER - GET /api/auth/me
   Future<Map<String, dynamic>> getCurrentUser() async {
     final url = Uri.parse('$baseUrl/auth/me');
     final headers = await _getHeaders();
@@ -163,12 +140,142 @@ class ApiService {
     }
   }
   
-  // LOGOUT
-  Future<void> logout() async {
-    await clearToken();
+  // PROFILE PICTURE UPLOAD - TEMPORARILY DISABLED FOR WEB
+  Future<Map<String, dynamic>> uploadProfilePicture(File imageFile) async {
+    // Temporarily disable for web until we fix web compatibility
+    if (kIsWeb) {
+      throw Exception('Profile picture upload is temporarily disabled for web. Please use the mobile app for this feature.');
+    }
+    
+    final url = Uri.parse('$baseUrl/profile/picture');
+    final token = await getToken();
+    
+    if (token == null) {
+      throw Exception('Not authenticated');
+    }
+    
+    var request = http.MultipartRequest('POST', url);
+    request.headers['Authorization'] = 'Bearer $token';
+    
+    request.files.add(
+      await http.MultipartFile.fromPath('profilePicture', imageFile.path),
+    );
+    
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to upload profile picture');
+    }
   }
   
-  // GET CYCLES - GET /api/cycles
+  // HEALTH METRICS
+  Future<Map<String, dynamic>> getHealthMetrics() async {
+    final url = Uri.parse('$baseUrl/health/metrics');
+    final headers = await _getHeaders();
+    
+    final response = await http.get(url, headers: headers);
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else if (response.statusCode == 404) {
+      return {}; // No metrics yet
+    } else {
+      throw Exception('Failed to get health metrics');
+    }
+  }
+  
+  Future<Map<String, dynamic>> saveHealthMetrics({
+    required DateTime birthdate,
+    required double height,
+    required double weight,
+    required bool useMetric,
+  }) async {
+    final url = Uri.parse('$baseUrl/health/metrics');
+    final headers = await _getHeaders();
+    
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: jsonEncode({
+        'birthdate': birthdate.toIso8601String(),
+        'height': height,
+        'weight': weight,
+        'useMetric': useMetric,
+      }),
+    );
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to save health metrics');
+    }
+  }
+  
+  // NOTIFICATION SETTINGS
+  Future<Map<String, dynamic>> getNotificationSettings() async {
+    final url = Uri.parse('$baseUrl/notifications/settings');
+    final headers = await _getHeaders();
+    
+    final response = await http.get(url, headers: headers);
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else if (response.statusCode == 404) {
+      return {
+        'periodReminders': false,
+        'ovulationReminders': false,
+        'dailyReminders': false,
+        'insightsReminders': false,
+        'anomalyReminders': false,
+      };
+    } else {
+      throw Exception('Failed to get notification settings');
+    }
+  }
+  
+  Future<void> updateNotificationSettings({
+    required bool periodReminders,
+    required bool ovulationReminders,
+    required bool dailyReminders,
+    required bool insightsReminders,
+    required bool anomalyReminders,
+  }) async {
+    final url = Uri.parse('$baseUrl/notifications/settings');
+    final headers = await _getHeaders();
+    
+    final response = await http.put(
+      url,
+      headers: headers,
+      body: jsonEncode({
+        'periodReminders': periodReminders,
+        'ovulationReminders': ovulationReminders,
+        'dailyReminders': dailyReminders,
+        'insightsReminders': insightsReminders,
+        'anomalyReminders': anomalyReminders,
+      }),
+    );
+    
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update notification settings');
+    }
+  }
+  
+  // PRIVACY
+  Future<void> deleteAllUserData() async {
+    final url = Uri.parse('$baseUrl/user/data');
+    final headers = await _getHeaders();
+    
+    final response = await http.delete(url, headers: headers);
+    
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete data');
+    }
+  }
+  
+  // CYCLES
   Future<List<dynamic>> getCycles() async {
     final url = Uri.parse('$baseUrl/cycles');
     final headers = await _getHeaders();
@@ -183,7 +290,6 @@ class ApiService {
     }
   }
   
-  // CREATE CYCLE - POST /api/cycles
   Future<Map<String, dynamic>> createCycle({
     required String startDate,
     required String flow,
@@ -209,7 +315,6 @@ class ApiService {
     }
   }
   
-  // UPDATE CYCLE - PUT /api/cycles/:id
   Future<Map<String, dynamic>> updateCycle({
     required String id,
     String? endDate,
@@ -236,7 +341,7 @@ class ApiService {
     }
   }
   
-  // GET INSIGHTS - GET /api/insights/current
+  // INSIGHTS
   Future<Map<String, dynamic>> getCurrentInsights() async {
     final url = Uri.parse('$baseUrl/insights/current');
     final headers = await _getHeaders();
@@ -250,21 +355,25 @@ class ApiService {
     }
   }
   
-  // REQUEST AI ANALYSIS - POST /api/insights/analyze
   Future<Map<String, dynamic>> requestAnalysis() async {
     final url = Uri.parse('$baseUrl/insights/analyze');
     final headers = await _getHeaders();
     
+    print('Requesting AI analysis from: $url');
+    
     final response = await http.post(url, headers: headers);
+    
+    print('AI Analysis Response Status: ${response.statusCode}');
+    print('AI Analysis Response Body: ${response.body}');
     
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
-      throw Exception('Failed to request analysis');
+      throw Exception('Failed to request analysis: ${response.statusCode}');
     }
   }
   
-  // LOG SYMPTOMS - POST /api/symptoms
+  // SYMPTOMS
   Future<Map<String, dynamic>> logSymptoms({
     required String date,
     required Map<String, int> symptoms,
@@ -292,5 +401,9 @@ class ApiService {
     } else {
       throw Exception('Failed to log symptoms');
     }
+  }
+  
+  Future<void> logout() async {
+    await clearToken();
   }
 }

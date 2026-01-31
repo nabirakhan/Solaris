@@ -1,5 +1,7 @@
-// File: frontend/lib/theme/app_theme.dart
+// File: lib/theme/app_theme.dart
+
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // ============================================================================
@@ -7,6 +9,9 @@ class AppTheme {
   // ============================================================================
   
   // Primary Colors
+  // Add these to your AppTheme class in app_theme.dart
+  static const Color successColor = success; // Alias to existing color
+  static const Color errorColor = error;     // Alias to existing color
   static const Color primaryPink = Color(0xFFE91E63); // Vibrant pink
   static const Color darkPink = Color(0xFFC2185B); // Deep pink
   static const Color lightPink = Color(0xFFF8BBD0); // Soft pink
@@ -17,6 +22,10 @@ class AppTheme {
   static const Color lightPurple = Color(0xFFE1BEE7);
   
   // Neutral Colors
+  static const Color peach = Color(0xFFFFCCBC); // Light peach/orange
+static const Color lavender = Color(0xFFE1BEE7); // Light purple/lavender
+static const Color mint = Color(0xFFC8E6C9); // Light green/mint
+static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
   static const Color almostWhite = Color(0xFFFAFAFA);
   static const Color pureWhite = Color(0xFFFFFFFF);
   static const Color textDark = Color(0xFF212121);
@@ -176,49 +185,49 @@ class AppTheme {
       ),
       
       // Text Theme
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
+      textTheme: TextTheme(
+        displayLarge: GoogleFonts.poppins(
           fontSize: 32,
           fontWeight: FontWeight.bold,
           color: textDark,
           letterSpacing: -0.5,
         ),
-        displayMedium: TextStyle(
+        displayMedium: GoogleFonts.poppins(
           fontSize: 28,
           fontWeight: FontWeight.bold,
           color: textDark,
         ),
-        headlineLarge: TextStyle(
+        headlineLarge: GoogleFonts.poppins(
           fontSize: 24,
           fontWeight: FontWeight.bold,
           color: textDark,
         ),
-        headlineMedium: TextStyle(
+        headlineMedium: GoogleFonts.poppins(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: textDark,
         ),
-        titleLarge: TextStyle(
+        titleLarge: GoogleFonts.poppins(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: textDark,
         ),
-        titleMedium: TextStyle(
+        titleMedium: GoogleFonts.poppins(
           fontSize: 16,
           fontWeight: FontWeight.w500,
           color: textDark,
         ),
-        bodyLarge: TextStyle(
+        bodyLarge: GoogleFonts.poppins(
           fontSize: 16,
           color: textDark,
           height: 1.5,
         ),
-        bodyMedium: TextStyle(
+        bodyMedium: GoogleFonts.poppins(
           fontSize: 14,
           color: textGray,
           height: 1.5,
         ),
-        bodySmall: TextStyle(
+        bodySmall: GoogleFonts.poppins(
           fontSize: 12,
           color: textLight,
         ),

@@ -9,11 +9,14 @@ import 'timeline_screen.dart';
 import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
+  static HomeScreenState? of(BuildContext context) =>
+      context.findAncestorStateOfType<HomeScreenState>();
+
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  HomeScreenState createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   
   final List<Widget> _screens = [
@@ -32,6 +35,12 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
   
+  void goToTab(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,11 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
+          onTap: goToTab,
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
           selectedItemColor: AppTheme.primaryPink,

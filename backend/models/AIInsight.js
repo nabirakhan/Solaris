@@ -123,7 +123,6 @@ class AIInsight {
     }
   }
 
-  // Delete old insights (cleanup)
   static async deleteOld(userId, daysToKeep = 90) {
     try {
       const sql = `
@@ -134,7 +133,7 @@ class AIInsight {
       `;
 
       const result = await query(sql, [userId]);
-      return result.rows.length; // Return count of deleted insights
+      return result.rows.length;
     } catch (error) {
       throw error;
     }
