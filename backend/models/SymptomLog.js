@@ -1,0 +1,162 @@
+// File: backend/models/SymptomLog.js
+const { query } = require('../config/database');
+
+class SymptomLog {
+  static async upsert({ userId, date, symptoms, sleepHours, stressLevel, notes }) {
+    try {
+      const sql = `
+        INSERT INTO symptom_logs (user_id, date, symptoms, sleep_hours, stress_level, notes)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (user_id, date)
+        DO UPDATE SET
+          symptoms = EXCLUDED.symptoms,
+          sleep_hours = EXCLUDED.sleep_hours,
+          stress_level = EXCLUDED.stress_level,
+          notes = EXCLUDED.notes,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING id, user_id, date, symptoms, sleep_hours, stress_level, 
+                  notes, created_at, updated_at
+      `;
+
+      const values = [
+        userId,
+        date,
+        JSON.stringify(symptoms),
+        sleepHours || null,
+        stressLevel || null,
+        notes || null
+      ];
+
+      const result = await query(sql, values);
+      return result.rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async findByUserId(userId, limit = 90) {
+    try {
+      const sql = `
+        SELECT id, user_id, date, symptoms, sleep_hours, stress_level, 
+               notes, created_at, updated_at
+        FROM symptom_logs
+        WHERE user_id = $1
+        ORDER BY date DESC
+        LIMIT $2
+      `;
+
+      const result = await query(sql, [userId, limit]);
+      return result.rows;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async findByDate(userId, date) {
+    try {
+      const sql = `
+        SELECT id, user_id, date, symptoms, sleep_hours, stress_level, 
+               notes, created_at, updated_at
+        FROM symptom_logs
+        WHERE user_id = $1 AND date = $2
+      `;
+
+      const result = await query(sql, [userId, date]);
+      return result.rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getByDateRange(userId, startDate, endDate) {
+    try {
+      const sql = `
+        SELECT id, user_id, date, symptoms, sleep_hours, stress_level, 
+               notes, created_at, updated_at
+        FROM symptom_logs
+        WHERE user_id = $1 AND date BETWEEN $2 AND $3
+        ORDER BY date DESC
+      `;
+
+      const result = await query(sql, [userId, startDate, endDate]);
+      return result.rows;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async delete(id, userId) {
+    try {
+      const sql = `
+        DELETE FROM symptom_logs
+        WHERE id = $1 AND user_id = $2
+        RETURNING id
+      `;
+
+      const result = await query(sql, [id, userId]);
+      return result.rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getLatest(userId) {
+    try {
+      const sql = `
+        SELECT id, user_id, date, symptoms, sleep_hours, stress_level, 
+               notes, created_at, updated_at
+        FROM symptom_logs
+        WHERE user_id = $1
+        ORDER BY date DESC
+        LIMIT 1
+      `;
+
+      const result = await query(sql, [userId]);
+      return result.rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getStats(userId, days = 30) {
+    try {
+      const sql = `
+        SELECT 
+          COUNT(*) as total_logs,
+          AVG((symptoms->>'cramps')::NUMERIC) as avg_cramps,
+          AVG((symptoms->>'mood')::NUMERIC) as avg_mood,
+          AVG((symptoms->>'energy')::NUMERIC) as avg_energy,
+          AVG((symptoms->>'headache')::NUMERIC) as avg_headache,
+          AVG((symptoms->>'bloating')::NUMERIC) as avg_bloating,
+          AVG(sleep_hours) as avg_sleep,
+          AVG(stress_level) as avg_stress
+        FROM symptom_logs
+        WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '${days} days'
+      `;
+
+      const result = await query(sql, [userId]);
+      return result.rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getForAnalysis(userId, limit = 90) {
+    try {
+      const sql = `
+        SELECT date, symptoms, sleep_hours, stress_level
+        FROM symptom_logs
+        WHERE user_id = $1
+        ORDER BY date DESC
+        LIMIT $2
+      `;
+
+      const result = await query(sql, [userId, limit]);
+      return result.rows;
+    } catch (error) {
+      throw error;
+    }
+  }
+}
+
+module.exports = SymptomLog;

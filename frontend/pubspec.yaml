@@ -1,0 +1,127 @@
+name: solaris
+description: AI-Powered Period Tracking App
+
+# Publish configuration (optional - keeps your app private)
+publish_to: 'none'
+
+# SDK version constraints
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ============================================================================
+  # STATE MANAGEMENT
+  # ============================================================================
+  provider: ^6.1.1
+
+  # ============================================================================
+  # NETWORKING & API
+  # ============================================================================
+  http: ^1.1.0
+
+  # ============================================================================
+  # AUTHENTICATION
+  # ============================================================================
+  google_sign_in: ^6.1.6
+  google_sign_in_web: ^0.12.1  # Required for web support
+
+  # ============================================================================
+  # LOCAL STORAGE
+  # ============================================================================
+  shared_preferences: ^2.2.2
+
+  # ============================================================================
+  # DATE & TIME
+  # ============================================================================
+  intl: ^0.19.0
+  table_calendar: ^3.0.9
+
+  # ============================================================================
+  # UI & ANIMATIONS
+  # ============================================================================
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+  
+  # Animations
+  flutter_animate: ^4.5.0  # For smooth animations and transitions
+  shimmer: ^3.0.0  # For loading shimmer effects
+  
+  # Charts (for cycle insights visualization)
+  fl_chart: ^0.66.0
+  
+  # Icons
+  font_awesome_flutter: ^10.7.0  # Additional icon set
+  
+  # ============================================================================
+  # UTILITIES
+  # ============================================================================
+  # URL launcher (for opening links)
+  url_launcher: ^6.2.4
+  
+  # Image picker (for profile pictures - optional)
+  # image_picker: ^1.0.7
+  
+  # Path provider (for file storage - optional)
+  # path_provider: ^2.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # Linting
+  flutter_lints: ^3.0.0
+  
+  # For generating icons and splash screens (optional)
+  # flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+
+  # ============================================================================
+  # ASSETS
+  # ============================================================================
+  assets:
+    - assets/images/
+
+  # ============================================================================
+  # FONTS
+  # ============================================================================
+  # If you want to use custom fonts instead of Google Fonts:
+  # fonts:
+  #   - family: CustomFont
+  #     fonts:
+  #       - asset: fonts/CustomFont-Regular.ttf
+  #       - asset: fonts/CustomFont-Bold.ttf
+  #         weight: 700
+
+# ============================================================================
+# OPTIONAL: Flutter Launcher Icons Configuration
+# ============================================================================
+# Uncomment to generate app icons automatically
+# Run: flutter pub run flutter_launcher_icons
+# flutter_icons:
+#   android: true
+#   ios: true
+#   image_path: "assets/icon/app_icon.png"
+#   adaptive_icon_background: "#E91E63"
+#   adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+
+# ============================================================================
+# NOTES FOR COMMON ISSUES
+# ============================================================================
+# 
+# If you get version conflicts:
+# 1. Run: flutter pub upgrade --major-versions
+# 2. Or: flutter pub get
+# 3. Clean and rebuild: flutter clean && flutter pub get
+#
+# For web support issues with Google Sign In:
+# - Make sure google_sign_in_web is included
+# - Add to index.html: <meta name="google-signin-client_id" content="YOUR_CLIENT_ID">
+#
+# For Android build issues:
+# - Check minSdkVersion in android/app/build.gradle (should be 21+)
+# - Check compileSdkVersion (should be 33+)
