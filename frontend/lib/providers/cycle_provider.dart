@@ -46,8 +46,13 @@ class CycleProvider with ChangeNotifier {
         notes: notes,
       );
       
+      // Reload cycles after creating new one
       await loadCycles();
+      // Also reload insights
+      await loadCurrentInsights();
+      
       _isLoading = false;
+      notifyListeners();
       return true;
     } catch (e) {
       _error = 'Error creating cycle: $e';
@@ -97,45 +102,42 @@ class CycleProvider with ChangeNotifier {
   
   /// Request AI analysis for personalized insights
   Future<bool> requestAIAnalysis() async {
-  _isLoading = true;
-  _error = null;
-  notifyListeners();
-  
-  try {
-    final result = await _apiService.requestAnalysis();
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
     
-    // Debug log to see what's returned
-    print('AI Analysis Response: $result');
-    
-    // Check for success in various possible response formats
-    final success = 
-        result['success'] == true ||
-        result['status'] == 'success' ||
-        result['hasData'] == true ||
-        result['message']?.toLowerCase().contains('success') == true;
-    
-    if (success) {
-      // Force reload insights to get updated data
-      await loadCurrentInsights();
-      await loadCycles(); // Also reload cycles
+    try {
+      final result = await _apiService.requestAnalysis();
       
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } else {
-      _error = result['message'] ?? result['error'] ?? 'Analysis failed';
+      print('AI Analysis Response: $result');
+      
+      final success = 
+          result['success'] == true ||
+          result['status'] == 'success' ||
+          result['hasData'] == true ||
+          result['message']?.toLowerCase().contains('success') == true;
+      
+      if (success) {
+        await loadCurrentInsights();
+        await loadCycles();
+        
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = result['message'] ?? result['error'] ?? 'Analysis failed';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      print('AI Analysis Error: $e');
+      _error = 'Error requesting analysis: $e';
       _isLoading = false;
       notifyListeners();
       return false;
     }
-  } catch (e) {
-    print('AI Analysis Error: $e');
-    _error = 'Error requesting analysis: $e';
-    _isLoading = false;
-    notifyListeners();
-    return false;
   }
-}
   
   /// Log symptoms for a specific date
   Future<bool> logSymptoms({
@@ -147,7 +149,7 @@ class CycleProvider with ChangeNotifier {
   }) async {
     try {
       await _apiService.logSymptoms(
-        date: date.toIso8601String().split('T')[0], // YYYY-MM-DD format
+        date: date.toIso8601String().split('T')[0],
         symptoms: symptoms,
         sleepHours: sleepHours,
         stressLevel: stressLevel,
@@ -174,7 +176,6 @@ class CycleProvider with ChangeNotifier {
       final firstCycle = _cycles.first;
       if (firstCycle == null || firstCycle is! Map) return null;
       
-      // Check both possible field names
       final startDate = firstCycle['startDate'] ?? firstCycle['start_date'];
       if (startDate != null) {
         return DateTime.parse(startDate.toString());
@@ -191,7 +192,6 @@ class CycleProvider with ChangeNotifier {
   /// Get current cycle phase (follicular, ovulation, luteal, menstruation)
   String get currentPhase {
     if (_currentInsights == null) return 'unknown';
-    // Check both possible field names
     return _currentInsights!['currentPhase'] ?? 
            _currentInsights!['current_phase'] ?? 
            'unknown';
@@ -200,7 +200,6 @@ class CycleProvider with ChangeNotifier {
   /// Get days since the start of current cycle
   int get daysSinceStart {
     if (_currentInsights == null) return 0;
-    // Check both possible field names
     return _currentInsights!['daysSinceStart'] ?? 
            _currentInsights!['days_since_start'] ?? 
            0;

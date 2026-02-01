@@ -1,31 +1,22 @@
-// File: lib/theme/app_theme.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // ============================================================================
-  // COLORS - Modern Pink/Purple Palette
-  // ============================================================================
   
-  // Primary Colors
-  // Add these to your AppTheme class in app_theme.dart
-  static const Color successColor = success; // Alias to existing color
-  static const Color errorColor = error;     // Alias to existing color
-  static const Color primaryPink = Color(0xFFE91E63); // Vibrant pink
-  static const Color darkPink = Color(0xFFC2185B); // Deep pink
-  static const Color lightPink = Color(0xFFF8BBD0); // Soft pink
-  static const Color blushPink = Color(0xFFFCE4EC); // Very light pink
+  static const Color successColor = success;
+  static const Color errorColor = error;
+  static const Color primaryPink = Color(0xFFE91E63);
+  static const Color darkPink = Color(0xFFC2185B);
+  static const Color lightPink = Color(0xFFF8BBD0);
+  static const Color blushPink = Color(0xFFFCE4EC);
   
-  // Purple Accents
   static const Color primaryPurple = Color(0xFF9C27B0);
   static const Color lightPurple = Color(0xFFE1BEE7);
   
-  // Neutral Colors
-  static const Color peach = Color(0xFFFFCCBC); // Light peach/orange
-static const Color lavender = Color(0xFFE1BEE7); // Light purple/lavender
-static const Color mint = Color(0xFFC8E6C9); // Light green/mint
-static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
+  static const Color peach = Color(0xFFFFCCBC);
+  static const Color lavender = Color(0xFFE1BEE7);
+  static const Color mint = Color(0xFFC8E6C9);
+  static const Color skyBlue = Color(0xFFB3E5FC);
   static const Color almostWhite = Color(0xFFFAFAFA);
   static const Color pureWhite = Color(0xFFFFFFFF);
   static const Color textDark = Color(0xFF212121);
@@ -33,21 +24,15 @@ static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
   static const Color textLight = Color(0xFFBDBDBD);
   static const Color divider = Color(0xFFE0E0E0);
   
-  // Semantic Colors
   static const Color success = Color(0xFF4CAF50);
   static const Color error = Color(0xFFF44336);
   static const Color warning = Color(0xFFFF9800);
   static const Color info = Color(0xFF2196F3);
   
-  // Phase Colors
-  static const Color menstrualPhase = Color(0xFFE57373); // Red
-  static const Color follicularPhase = Color(0xFF81C784); // Green
-  static const Color ovulationPhase = Color(0xFFFFD54F); // Yellow
-  static const Color lutealPhase = Color(0xFF9575CD); // Purple
-  
-  // ============================================================================
-  // GRADIENTS
-  // ============================================================================
+  static const Color menstrualPhase = Color(0xFFE57373);
+  static const Color follicularPhase = Color(0xFF81C784);
+  static const Color ovulationPhase = Color(0xFFFFD54F);
+  static const Color lutealPhase = Color(0xFF9575CD);
   
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
@@ -84,10 +69,6 @@ static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
     }
   }
   
-  // ============================================================================
-  // THEME DATA
-  // ============================================================================
-  
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
@@ -99,7 +80,6 @@ static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
         background: almostWhite,
       ),
       
-      // App Bar Theme
       appBarTheme: const AppBarTheme(
         elevation: 0,
         centerTitle: true,
@@ -108,7 +88,6 @@ static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
         iconTheme: IconThemeData(color: primaryPink),
       ),
       
-      // Card Theme
       cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
@@ -118,7 +97,6 @@ static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
         shadowColor: primaryPink.withOpacity(0.1),
       ),
       
-      // Elevated Button Theme
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryPink,
@@ -136,7 +114,6 @@ static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
         ),
       ),
       
-      // Outlined Button Theme
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: primaryPink,
@@ -148,7 +125,6 @@ static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
         ),
       ),
       
-      // Text Button Theme
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: primaryPink,
@@ -159,7 +135,6 @@ static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
         ),
       ),
       
-      // Input Decoration Theme
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: almostWhite,
@@ -184,7 +159,6 @@ static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
         hintStyle: TextStyle(color: textLight),
       ),
       
-      // Text Theme
       textTheme: TextTheme(
         displayLarge: GoogleFonts.poppins(
           fontSize: 32,
@@ -233,26 +207,22 @@ static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
         ),
       ),
       
-      // Divider Theme
       dividerTheme: const DividerThemeData(
         color: divider,
         thickness: 1,
         space: 1,
       ),
       
-      // Icon Theme
       iconTheme: const IconThemeData(
         color: primaryPink,
         size: 24,
       ),
       
-      // Progress Indicator Theme
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: primaryPink,
         linearTrackColor: blushPink,
       ),
       
-      // Floating Action Button Theme
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: primaryPink,
         foregroundColor: pureWhite,
@@ -261,19 +231,11 @@ static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
     );
   }
   
-  // ============================================================================
-  // ANIMATION DURATIONS
-  // ============================================================================
-  
   static const Duration ultraFast = Duration(milliseconds: 100);
   static const Duration fast = Duration(milliseconds: 200);
   static const Duration normal = Duration(milliseconds: 300);
   static const Duration slow = Duration(milliseconds: 500);
   static const Duration verySlow = Duration(milliseconds: 800);
-  
-  // ============================================================================
-  // BORDER RADIUS
-  // ============================================================================
   
   static const double radiusSmall = 8.0;
   static const double radiusMedium = 12.0;
@@ -281,20 +243,12 @@ static const Color skyBlue = Color(0xFFB3E5FC); // Light blue
   static const double radiusXLarge = 24.0;
   static const double radiusCircle = 999.0;
   
-  // ============================================================================
-  // SPACING
-  // ============================================================================
-  
   static const double spaceXS = 4.0;
   static const double spaceS = 8.0;
   static const double spaceM = 16.0;
   static const double spaceL = 24.0;
   static const double spaceXL = 32.0;
   static const double spaceXXL = 48.0;
-  
-  // ============================================================================
-  // ELEVATION
-  // ============================================================================
   
   static const double elevationLow = 2.0;
   static const double elevationMedium = 4.0;

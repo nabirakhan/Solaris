@@ -1,368 +1,557 @@
-// File: frontend/lib/screens/timeline_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:intl/intl.dart';
 import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/animated_background.dart';
 
 class TimelineScreen extends StatefulWidget {
   @override
   _TimelineScreenState createState() => _TimelineScreenState();
 }
 
-class _TimelineScreenState extends State<TimelineScreen> {
-  CalendarFormat _calendarFormat = CalendarFormat.month;
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay;
-  
+class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+  DateTime _selectedMonth = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+    
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.almostWhite,
-      body: Stack(
-        children: [
-          // Animated Background Blobs
-          Positioned(
-            top: -50,
-            left: -50,
-            child: _buildBlob(AppTheme.primaryPink.withOpacity(0.2), 250),
-          ),
-          Positioned(
-            bottom: 200,
-            right: -100,
-            child: _buildBlob(AppTheme.lightPink.withOpacity(0.2), 300),
-          ),
-          Positioned(
-            bottom: -50,
-            left: 50,
-            child: _buildBlob(AppTheme.lightPurple.withOpacity(0.2), 200),
-          ),
-
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(20),
-              child: Consumer<CycleProvider>(
-                builder: (context, cycleProvider, child) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      body: AnimatedGradientBackground(
+        duration: Duration(seconds: 5),
+        colors: [
+          AppTheme.blushPink,
+          AppTheme.lightPurple,
+          AppTheme.lightPink,
+          AppTheme.almostWhite,
+        ],
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildSimpleHeader(),
+              
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: BouncingScrollPhysics(),
+                  child: Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Timeline',
-                                style: Theme.of(context).textTheme.displayLarge,
-                              ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
-                              
-                              SizedBox(height: 8),
-                              
-                              Text(
-                                'View your cycle history',
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ).animate().fadeIn(delay: 200.ms),
-                            ],
-                          ),
-                          // Peek-a-boo Panda
-                          Container(
-                            height: 60,
-                            width: 60,
-                            decoration: BoxDecoration(
-                              color: AppTheme.lightPink,
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            child: Icon(
-                              Icons.pets,
-                              color: AppTheme.primaryPink,
-                              size: 30,
-                            ),
-                          ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-                           .rotate(begin: -0.1, end: 0.1, duration: 2.seconds)
-                           .scaleXY(begin: 0.9, end: 1.1),
-                        ],
-                      ),
+                      SizedBox(height: 20),
+                      
+                      _buildMonthSelector()
+                        .animate()
+                        .fadeIn(duration: 600.ms, delay: 200.ms)
+                        .slideY(begin: -0.2),
                       
                       SizedBox(height: 24),
                       
-                      GlassCard(
-                        child: Padding(
-                          padding: EdgeInsets.all(8),
-                          child: TableCalendar(
-                            firstDay: DateTime.utc(2020, 1, 1),
-                            lastDay: DateTime.utc(2030, 12, 31),
-                            focusedDay: _focusedDay,
-                            calendarFormat: _calendarFormat,
-                            selectedDayPredicate: (day) {
-                              return isSameDay(_selectedDay, day);
-                            },
-                            onDaySelected: (selectedDay, focusedDay) {
-                              setState(() {
-                                _selectedDay = selectedDay;
-                                _focusedDay = focusedDay;
-                              });
-                            },
-                            onFormatChanged: (format) {
-                              setState(() {
-                                _calendarFormat = format;
-                              });
-                            },
-                            onPageChanged: (focusedDay) {
-                              _focusedDay = focusedDay;
-                            },
-                            calendarStyle: CalendarStyle(
-                              outsideDaysVisible: false,
-                              defaultTextStyle: TextStyle(color: AppTheme.textDark),
-                              weekendTextStyle: TextStyle(color: AppTheme.textDark),
-                              todayDecoration: BoxDecoration(
-                                color: AppTheme.lightPink,
-                                shape: BoxShape.circle,
-                              ),
-                              selectedDecoration: BoxDecoration(
-                                color: AppTheme.primaryPink,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.primaryPink.withOpacity(0.4),
-                                    blurRadius: 10,
-                                    spreadRadius: 2,
-                                  )
-                                ]
-                              ),
-                              markerDecoration: BoxDecoration(
-                                color: AppTheme.primaryPink,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            headerStyle: HeaderStyle(
-                              formatButtonVisible: false,
-                              titleCentered: true,
-                              titleTextStyle: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textDark,
-                              ),
-                              leftChevronIcon: Icon(
-                                Icons.chevron_left,
-                                color: AppTheme.primaryPink,
-                              ),
-                              rightChevronIcon: Icon(
-                                Icons.chevron_right,
-                                color: AppTheme.primaryPink,
-                              ),
-                            ),
-                            calendarBuilders: CalendarBuilders(
-                              markerBuilder: (context, date, events) {
-                                if (cycleProvider.cycles.isEmpty) return null;
-
-                                final isPeriodStart = cycleProvider.cycles.any((cycle) {
-                                  if (cycle == null || cycle is! Map) return false;
-                                  final startDateStr = cycle['startDate'] ?? 
-                                                      cycle['start_date'] ??
-                                                      cycle['StartDate'];
-                                  if (startDateStr == null) return false;
-                                  try {
-                                    final dateStr = startDateStr.toString();
-                                    final startDate = DateTime.parse(dateStr);
-                                    return isSameDay(startDate, date);
-                                  } catch (e) {
-                                    return false;
-                                  }
-                                });
-                                
-                                if (isPeriodStart) {
-                                  return Positioned(
-                                    bottom: 1,
-                                    child: Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryPink,
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: AppTheme.primaryPink.withOpacity(0.5),
-                                            blurRadius: 4,
-                                          )
-                                        ]
-                                      ),
-                                    ),
-                                  );
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ),
-                      ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
+                      _buildCalendar()
+                        .animate()
+                        .fadeIn(duration: 600.ms, delay: 400.ms)
+                        .scale(begin: Offset(0.95, 0.95)),
                       
                       SizedBox(height: 24),
                       
-                      Text(
-                        'Cycle History',
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ).animate().fadeIn(delay: 500.ms),
-                      
-                      SizedBox(height: 16),
-                      
-                      if (cycleProvider.cycles.isEmpty)
-                        GlassCard(
-                          child: Padding(
-                            padding: EdgeInsets.all(32),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.calendar_today_outlined,
-                                  size: 60,
-                                  color: AppTheme.lightPink,
-                                ).animate(onPlay: (controller) => controller.repeat()).shake(hz: 0.5),
-                                SizedBox(height: 16),
-                                Text(
-                                  'No cycles logged yet',
-                                  style: Theme.of(context).textTheme.titleLarge,
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Start logging to see your history',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ).animate().fadeIn(delay: 600.ms)
-                      else
-                        ...cycleProvider.cycles.where((c) => c != null && c is Map).take(10).toList().asMap().entries.map((entry) {
-                          int index = entry.key;
-                          var cycle = entry.value;
-                          
-                          // Safely get startDate
-                          final startDateStr = cycle['startDate'] ?? 
-                                              cycle['start_date'] ??
-                                              cycle['StartDate'] ??
-                                              DateTime.now().toString();
-                          
-                          DateTime startDate;
-                          try {
-                            startDate = DateTime.parse(startDateStr.toString());
-                          } catch (e) {
-                            startDate = DateTime.now();
-                          }
-                          
-                          // Safely get cycleLength
-                          final cycleLength = cycle['cycleLength'] ?? 
-                                             cycle['cycle_length'] ??
-                                             cycle['CycleLength'];
-                          
-                          // Safely get flow
-                          String flowValue = 'Medium';
-                          final flow = cycle['flow'] ?? 
-                                      cycle['Flow'] ?? 
-                                      cycle['flowLevel'];
-                          if (flow != null && flow.toString().isNotEmpty) {
-                            flowValue = flow.toString();
-                          }
-                          
-                          return GlassCard(
-                            margin: EdgeInsets.only(bottom: 12),
-                            padding: EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.blushPink.withOpacity(0.5),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.white.withOpacity(0.5)),
-                                  ),
-                                  child: Icon(
-                                    Icons.water_drop,
-                                    color: AppTheme.primaryPink,
-                                  ),
-                                ),
-                                
-                                SizedBox(width: 16),
-                                
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        DateFormat('MMMM d, yyyy').format(startDate),
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.textDark,
-                                        ),
-                                      ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        cycleLength != null
-                                            ? '$cycleLength days'
-                                            : 'Ongoing',
-                                        style: Theme.of(context).textTheme.bodyMedium,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.lightPink.withOpacity(0.3),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: AppTheme.primaryPink.withOpacity(0.2)),
-                                  ),
-                                  child: Text(
-                                    flowValue,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppTheme.primaryPink,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ).animate().fadeIn(delay: (600 + (index * 100)).ms).slideX(begin: 0.1);
-                        }).toList(),
-                        
-                      SizedBox(height: 100), // Extra scroll space
+                      _buildCycleHistory()
+                        .animate()
+                        .fadeIn(duration: 600.ms, delay: 600.ms)
+                        .slideY(begin: 0.2),
                     ],
-                  );
-                },
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSimpleHeader() {
+    return Container(
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Your Timeline',
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textDark,
+            ),
+          ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
+          SizedBox(height: 4),
+          Text(
+            'Track your journey over time',
+            style: TextStyle(
+              fontSize: 15,
+              color: AppTheme.textGray,
+            ),
+          ).animate().fadeIn(duration: 600.ms, delay: 100.ms),
         ],
       ),
     );
   }
 
-  Widget _buildBlob(Color color, double size) {
+  Widget _buildMonthSelector() {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20),
+      child: GlassCard(
+        margin: EdgeInsets.zero,
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildMonthButton(Icons.chevron_left, () {
+              setState(() {
+                _selectedMonth = DateTime(
+                  _selectedMonth.year,
+                  _selectedMonth.month - 1,
+                );
+              });
+            }),
+            
+            Expanded(
+              child: Center(
+                child: Text(
+                  DateFormat('MMMM yyyy').format(_selectedMonth),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+              ),
+            ),
+            
+            _buildMonthButton(Icons.chevron_right, () {
+              setState(() {
+                _selectedMonth = DateTime(
+                  _selectedMonth.year,
+                  _selectedMonth.month + 1,
+                );
+              });
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMonthButton(IconData icon, VoidCallback onTap) {
     return Container(
-      width: size,
-      height: size,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
+        gradient: AppTheme.primaryGradient,
+        borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-            color: color,
-            blurRadius: 50,
-            spreadRadius: 20,
+            color: AppTheme.primaryPink.withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 4),
           ),
         ],
       ),
-    ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-     .scaleXY(begin: 0.9, end: 1.1, duration: 4.seconds);
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: EdgeInsets.all(12),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCalendar() {
+    return Consumer<CycleProvider>(
+      builder: (context, provider, child) {
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: GlassCard(
+            margin: EdgeInsets.zero,
+            padding: EdgeInsets.all(20),
+            child: Column(
+              children: [
+                _buildWeekDays(),
+                SizedBox(height: 16),
+                _buildCalendarDays(provider),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWeekDays() {
+    final weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: weekDays.map((day) {
+        return Expanded(
+          child: Center(
+            child: Text(
+              day,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textGray,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildCalendarDays(CycleProvider provider) {
+    final firstDayOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
+    final lastDayOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
+    final daysInMonth = lastDayOfMonth.day;
+    final startWeekday = firstDayOfMonth.weekday % 7;
+    
+    List<Widget> dayWidgets = [];
+    
+    // Add empty cells for days before the month starts
+    for (int i = 0; i < startWeekday; i++) {
+      dayWidgets.add(Expanded(child: SizedBox()));
+    }
+    
+    // Add day cells
+    for (int day = 1; day <= daysInMonth; day++) {
+      final date = DateTime(_selectedMonth.year, _selectedMonth.month, day);
+      dayWidgets.add(_buildDayCell(day, date, provider));
+    }
+    
+    // Build rows of 7 days
+    List<Widget> rows = [];
+    for (int i = 0; i < dayWidgets.length; i += 7) {
+      rows.add(
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: dayWidgets.skip(i).take(7).toList(),
+          ),
+        ),
+      );
+    }
+    
+    return Column(children: rows);
+  }
+
+  Widget _buildDayCell(int day, DateTime date, CycleProvider provider) {
+    final isPeriodDay = _isPeriodDay(provider, date);
+    final isToday = _isToday(date);
+    final index = day - 1;
+    
+    return Expanded(
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Container(
+          margin: EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            gradient: isPeriodDay
+                ? LinearGradient(
+                    colors: [
+                      AppTheme.primaryPink,
+                      AppTheme.primaryPink.withOpacity(0.8),
+                    ],
+                  )
+                : null,
+            color: isToday && !isPeriodDay
+                ? AppTheme.primaryPink.withOpacity(0.1)
+                : null,
+            borderRadius: BorderRadius.circular(10),
+            border: isToday
+                ? Border.all(color: AppTheme.primaryPink, width: 2)
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              '$day',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isPeriodDay || isToday ? FontWeight.bold : FontWeight.normal,
+                color: isPeriodDay 
+                  ? Colors.white 
+                  : (isToday ? AppTheme.primaryPink : AppTheme.textDark),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ).animate().fadeIn(duration: 400.ms, delay: Duration(milliseconds: index * 20));
+  }
+
+  Widget _buildCycleHistory() {
+    return Consumer<CycleProvider>(
+      builder: (context, provider, child) {
+        print('Building cycle history, total cycles: ${provider.cycles.length}');
+        
+        if (provider.cycles.isEmpty) {
+          return _buildEmptyState();
+        }
+        
+        final validCycles = provider.cycles.where((cycle) {
+          final startDate = cycle['start_date'] ?? cycle['startDate'];
+          return startDate != null && startDate.toString().isNotEmpty;
+        }).toList();
+        
+        print('Valid cycles: ${validCycles.length}');
+        
+        if (validCycles.isEmpty) {
+          return _buildEmptyState();
+        }
+        
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Cycle History',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textDark,
+                ),
+              ),
+              SizedBox(height: 16),
+              ...validCycles.asMap().entries.map((entry) {
+                return _buildCycleCard(entry.value, entry.key, provider);
+              }).toList(),
+              SizedBox(height: 100),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCycleCard(Map<String, dynamic> cycle, int index, CycleProvider cycleProvider) {
+    // Handle both snake_case and camelCase field names
+    final startDateString = (cycle['start_date'] ?? cycle['startDate'])?.toString();
+    final endDateString = (cycle['end_date'] ?? cycle['endDate'])?.toString();
+    final flow = cycle['flow']?.toString() ?? 'medium';
+    
+    if (startDateString == null || startDateString.isEmpty) {
+      return SizedBox();
+    }
+    
+    try {
+      final startDate = DateTime.parse(startDateString);
+      final endDate = endDateString != null && endDateString.isNotEmpty 
+        ? DateTime.parse(endDateString) 
+        : null;
+      
+      final length = cycle['cycle_length'] ?? cycle['cycleLength'] ?? (endDate != null 
+        ? endDate.difference(startDate).inDays + 1 
+        : null);
+      
+      return Padding(
+        padding: EdgeInsets.only(bottom: 16),
+        child: GlassCard(
+          margin: EdgeInsets.zero,
+          padding: EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryPink.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    length != null ? '$length' : '?',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cycle ${cycleProvider.cycles.length - index}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      DateFormat('MMM d, yyyy').format(startDate),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.textGray,
+                      ),
+                    ),
+                    if (endDate != null)
+                      Text(
+                        'to ${DateFormat('MMM d, yyyy').format(endDate)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textLight,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.follicularPhase.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  endDate != null ? Icons.check_circle : Icons.timelapse,
+                  color: endDate != null ? AppTheme.follicularPhase : AppTheme.warning,
+                  size: 24,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ).animate().fadeIn(duration: 600.ms, delay: Duration(milliseconds: 100 * index))
+        .slideX(begin: 0.2);
+    } catch (e) {
+      print('Error building cycle card: $e');
+      return SizedBox();
+    }
+  }
+
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: EdgeInsets.all(40),
+      child: Center(
+        child: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: AppTheme.blushPink.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.calendar_today,
+                size: 60,
+                color: AppTheme.primaryPink.withOpacity(0.5),
+              ),
+            ).animate().scale(duration: 800.ms, curve: Curves.elasticOut),
+            SizedBox(height: 24),
+            Text(
+              'No Cycles Yet',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textDark,
+              ),
+            ).animate().fadeIn(duration: 600.ms, delay: 200.ms),
+            SizedBox(height: 8),
+            Text(
+              'Start logging your periods to see your timeline',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.textGray,
+              ),
+              textAlign: TextAlign.center,
+            ).animate().fadeIn(duration: 600.ms, delay: 400.ms),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _isPeriodDay(CycleProvider provider, DateTime date) {
+    // Normalize the date to midnight for comparison
+    final checkDate = DateTime(date.year, date.month, date.day);
+    
+    for (var cycle in provider.cycles) {
+      final startDateString = (cycle['start_date'] ?? cycle['startDate'])?.toString();
+      final endDateString = (cycle['end_date'] ?? cycle['endDate'])?.toString();
+      
+      if (startDateString == null || startDateString.isEmpty) {
+        continue;
+      }
+      
+      try {
+        final startDate = DateTime.parse(startDateString);
+        final normalizedStart = DateTime(startDate.year, startDate.month, startDate.day);
+        
+        if (endDateString != null && endDateString.isNotEmpty) {
+          final endDate = DateTime.parse(endDateString);
+          final normalizedEnd = DateTime(endDate.year, endDate.month, endDate.day);
+          
+          if (!checkDate.isBefore(normalizedStart) && !checkDate.isAfter(normalizedEnd)) {
+            return true;
+          }
+        } else {
+          // If no end date, assume period lasts 5 days
+          final estimatedEnd = normalizedStart.add(Duration(days: 5));
+          
+          if (!checkDate.isBefore(normalizedStart) && checkDate.isBefore(estimatedEnd)) {
+            return true;
+          }
+        }
+      } catch (e) {
+        print('Error parsing dates in _isPeriodDay: $e');
+        continue;
+      }
+    }
+    return false;
+  }
+
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && 
+           date.month == now.month && 
+           date.day == now.day;
   }
 }

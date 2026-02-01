@@ -24,7 +24,7 @@ class GlassCard extends StatelessWidget {
     this.padding,
     this.margin,
     this.borderRadius = AppConstants.borderRadiusLarge,
-    this.blur = 10.0,
+    this.blur = 15.0,
     this.color,
     this.border,
     this.boxShadow,
@@ -42,9 +42,15 @@ class GlassCard extends StatelessWidget {
         boxShadow: boxShadow ??
             [
               BoxShadow(
-                color: AppConstants.primaryColor.withOpacity(0.1),
+                color: AppConstants.primaryColor.withOpacity(0.15),
+                blurRadius: 25,
+                offset: const Offset(0, 12),
+                spreadRadius: -5,
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.8),
                 blurRadius: 20,
-                offset: const Offset(0, 10),
+                offset: const Offset(-5, -5),
               ),
             ],
       ),
@@ -56,20 +62,20 @@ class GlassCard extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: color != null
                   ? null
-                  : const LinearGradient(
+                  : LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Color(0x40FFFFFF),
-                        Color(0x10FFFFFF),
+                        Color(0x60FFFFFF),
+                        Color(0x30FFFFFF),
                       ],
                     ),
               color: color,
               borderRadius: BorderRadius.circular(borderRadius),
               border: border ??
                   Border.all(
-                    color: Colors.white.withOpacity(0.2),
-                    width: 1.5,
+                    color: Colors.white.withOpacity(0.4),
+                    width: 2,
                   ),
             ),
             padding: padding ?? const EdgeInsets.all(AppConstants.paddingLarge),
@@ -77,6 +83,8 @@ class GlassCard extends StatelessWidget {
                 ? InkWell(
                     onTap: onTap,
                     borderRadius: BorderRadius.circular(borderRadius),
+                    splashColor: AppConstants.primaryColor.withOpacity(0.1),
+                    highlightColor: AppConstants.primaryColor.withOpacity(0.05),
                     child: child,
                   )
                 : child,
@@ -127,7 +135,7 @@ class _AnimatedGlassCardState extends State<AnimatedGlassCard>
       duration: widget.animationDuration,
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
+    _scaleAnimation = Tween<double>(begin: 0.92, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
     );
 

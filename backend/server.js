@@ -7,6 +7,7 @@ const { pool } = require('./config/database');
 
 const app = express();
 
+
 // ============================================================================
 // MIDDLEWARE
 // ============================================================================
@@ -71,6 +72,8 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/cycles', require('./routes/cycles'));
 app.use('/api/symptoms', require('./routes/symptoms'));
 app.use('/api/insights', require('./routes/insights'));
+const healthRoutes = require('./routes/healthRoutes');
+   app.use('/api/health', healthRoutes);
 
 // ============================================================================
 // HEALTH & TEST ENDPOINTS
@@ -164,5 +167,6 @@ if (require.main === module) {
     process.exit(1);
   });
 }
+
 
 module.exports = { app, startServer };

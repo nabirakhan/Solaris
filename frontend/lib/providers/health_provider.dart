@@ -40,6 +40,8 @@ class HealthProvider with ChangeNotifier {
     notifyListeners();
     
     try {
+      print('Saving health metrics: birthdate=$birthdate, height=$height, weight=$weight, useMetric=$useMetric');
+      
       final result = await _apiService.saveHealthMetrics(
         birthdate: birthdate,
         height: height,
@@ -47,11 +49,20 @@ class HealthProvider with ChangeNotifier {
         useMetric: useMetric,
       );
       
+      print('Save result: $result');
+      
+      // Update local state with saved metrics
       _healthMetrics = result;
+      _error = null;
       _isLoading = false;
       notifyListeners();
+      
+      // Reload to ensure we have latest data
+      await loadHealthMetrics();
+      
       return true;
     } catch (e) {
+      print('Error saving health metrics: $e');
       _error = 'Error saving health metrics: $e';
       _isLoading = false;
       notifyListeners();

@@ -1,15 +1,13 @@
 // File: lib/screens/today_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'dart:math' as math;
 import '../providers/cycle_provider.dart';
-import '../providers/health_provider.dart';
 import '../theme/app_theme.dart';
-import '../widgets/panda_mascot.dart';
 import '../widgets/glass_card.dart';
-import '../widgets/recommendation_card.dart';
-import 'home_screen.dart';
+import '../widgets/panda_mascot.dart';
+import '../widgets/animated_background.dart';
 
 class TodayScreen extends StatefulWidget {
   @override
@@ -18,56 +16,590 @@ class TodayScreen extends StatefulWidget {
 
 class _TodayScreenState extends State<TodayScreen>
     with SingleTickerProviderStateMixin {
-  
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-  
+  late AnimationController _floatingController;
+  late Animation<double> _floatingAnimation;
+  final PageController _recommendationsController =
+      PageController(viewportFraction: 0.85);
+  int _currentRecommendationPage = 0;
+
   @override
   void initState() {
     super.initState();
-    
-    _animationController = AnimationController(
+
+    _floatingController = AnimationController(
       vsync: this,
-      duration: AppTheme.slow,
-    );
-    
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
-    );
-    
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-    );
-    
-    _animationController.forward();
+      duration: Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+
+    _floatingAnimation = Tween<double>(
+      begin: -8.0,
+      end: 8.0,
+    ).animate(CurvedAnimation(
+      parent: _floatingController,
+      curve: Curves.easeInOut,
+    ));
+
+    _recommendationsController.addListener(() {
+      int page = _recommendationsController.page?.round() ?? 0;
+      if (page != _currentRecommendationPage) {
+        setState(() => _currentRecommendationPage = page);
+      }
+    });
   }
-  
+
   @override
   void dispose() {
-    _animationController.dispose();
+    _floatingController.dispose();
+    _recommendationsController.dispose();
     super.dispose();
   }
-  
-  String _getPhaseEmoji(String phase) {
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.almostWhite,
+      body: AnimatedGradientBackground(
+        duration: Duration(seconds: 4),
+        colors: [
+          AppTheme.blushPink,
+          AppTheme.lightPink,
+          AppTheme.lightPurple,
+          AppTheme.almostWhite,
+        ],
+        child: SafeArea(
+          child: CustomScrollView(
+            physics: BouncingScrollPhysics(),
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 120,
+                floating: false,
+                pinned: true,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          AppTheme.primaryPink.withOpacity(0.05),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                    // No top padding — mainAxisAlignment: end positions
+                    // the text at the bottom regardless of expanded height.
+                    // The old top: 50 caused overflow when the bar collapsed.
+                    padding: EdgeInsets.fromLTRB(24, 0, 24, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          _getGreeting(),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppTheme.textGray,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Today\'s Overview',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    SizedBox(height: 20),
+
+                    _buildPhaseCard()
+                        .animate()
+                        .fadeIn(duration: 600.ms, delay: 200.ms)
+                        .slideY(begin: 0.3, end: 0, curve: Curves.easeOutCubic)
+                        .shimmer(duration: 1500.ms, delay: 400.ms),
+
+                    SizedBox(height: 24),
+
+                    _buildPandaSection()
+                        .animate()
+                        .fadeIn(duration: 600.ms, delay: 400.ms)
+                        .scale(begin: Offset(0.8, 0.8), curve: Curves.elasticOut),
+
+                    SizedBox(height: 24),
+
+                    _buildStatsGrid()
+                        .animate()
+                        .fadeIn(duration: 600.ms, delay: 600.ms)
+                        .slideX(begin: -0.2, curve: Curves.easeOutCubic),
+
+                    SizedBox(height: 32),
+
+                    _buildRecommendationsCarousel(),
+
+                    SizedBox(height: 100),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhaseCard() {
+    return Consumer<CycleProvider>(
+      builder: (context, provider, child) {
+        final phase = provider.currentPhase;
+        final daysSinceStart = provider.daysSinceStart;
+
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: AnimatedBuilder(
+            animation: _floatingAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(0, _floatingAnimation.value),
+                child: child,
+              );
+            },
+            child: GlassCard(
+              margin: EdgeInsets.zero,
+              padding: EdgeInsets.all(24),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: _getPhaseGradient(phase),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              _getPhaseIcon(phase),
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _getPhaseTitle(phase),
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Text(
+                                  'Day $daysSinceStart of cycle',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white.withOpacity(0.9),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 20),
+                      Text(
+                        _getPhaseDescription(phase),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.95),
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPandaSection() {
+    return Consumer<CycleProvider>(
+      builder: (context, provider, child) {
+        final phase = provider.currentPhase;
+        final daysSinceStart = provider.daysSinceStart;
+        final progress = (daysSinceStart % 28) / 28.0;
+
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: GlassCard(
+            margin: EdgeInsets.zero,
+            child: SizedBox(
+              height: 200,
+              child: PandaMascot(
+                phase: phase,
+                cycleDay: daysSinceStart,
+                progressPercentage: progress,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatsGrid() {
+    return Consumer<CycleProvider>(
+      builder: (context, provider, child) {
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Cycles Tracked',
+                  '${provider.totalCycles}',
+                  Icons.calendar_today,
+                  AppTheme.primaryPink,
+                  0,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  'Avg Length',
+                  provider.averageCycleLength != null
+                      ? '${provider.averageCycleLength!.toStringAsFixed(0)} days'
+                      : 'N/A',
+                  Icons.trending_up,
+                  AppTheme.primaryPurple,
+                  100,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  'Regularity',
+                  provider.regularityScore != null
+                      ? '${(provider.regularityScore! * 100).toStringAsFixed(0)}%'
+                      : 'N/A',
+                  Icons.check_circle,
+                  AppTheme.follicularPhase,
+                  200,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatCard(
+      String label, String value, IconData icon, Color color, int delayMs) {
+    return GlassCard(
+      margin: EdgeInsets.zero,
+      padding: EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          SizedBox(height: 12),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: AppTheme.textGray,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ).animate()
+        .fadeIn(duration: 600.ms, delay: Duration(milliseconds: delayMs));
+  }
+
+  Widget _buildRecommendationsCarousel() {
+    return Consumer<CycleProvider>(
+      builder: (context, provider, child) {
+        final recommendations = _getRecommendations(provider.currentPhase);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Recommendations for You',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryPink.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${(_currentRecommendationPage % recommendations.length) + 1}/${recommendations.length}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryPink,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(duration: 600.ms, delay: 800.ms),
+
+            SizedBox(height: 16),
+
+            SizedBox(
+              height: 160,
+              child: PageView.builder(
+                controller: _recommendationsController,
+                physics: BouncingScrollPhysics(),
+                itemCount: recommendations.length * 1000,
+                itemBuilder: (context, index) {
+                  final actualIndex = index % recommendations.length;
+                  final recommendation = recommendations[actualIndex];
+
+                  return AnimatedBuilder(
+                    animation: _recommendationsController,
+                    builder: (context, child) {
+                      double value = 1.0;
+                      if (_recommendationsController.position.haveDimensions) {
+                        value =
+                            (_recommendationsController.page ?? 0) - index;
+                        value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
+                      }
+
+                      return Transform.scale(
+                        scale: Curves.easeOut.transform(value),
+                        child: Opacity(
+                          opacity: value,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: _buildRecommendationCard(
+                      recommendation['title']!,
+                      recommendation['description']!,
+                      recommendation['icon'] as IconData,
+                      recommendation['color'] as Color,
+                    ),
+                  );
+                },
+              ),
+            ).animate().fadeIn(duration: 600.ms, delay: 900.ms),
+
+            SizedBox(height: 16),
+
+            Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(
+                  recommendations.length,
+                  (index) => AnimatedContainer(
+                    duration: Duration(milliseconds: 300),
+                    margin: EdgeInsets.symmetric(horizontal: 4),
+                    width:
+                        (_currentRecommendationPage % recommendations.length) ==
+                                index
+                            ? 24
+                            : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color:
+                          (_currentRecommendationPage % recommendations.length) ==
+                                  index
+                              ? AppTheme.primaryPink
+                              : AppTheme.primaryPink.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+            ).animate().fadeIn(duration: 600.ms, delay: 1000.ms),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildRecommendationCard(
+      String title, String description, IconData icon, Color color) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12),
+      child: GlassCard(
+        margin: EdgeInsets.zero,
+        padding: EdgeInsets.all(20),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withOpacity(0.15),
+                color.withOpacity(0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: color, size: 36),
+                ),
+                SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textGray,
+                          height: 1.5,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  LinearGradient _getPhaseGradient(String phase) {
     switch (phase) {
       case 'menstrual':
-        return '🌙';
+        return LinearGradient(
+          colors: [
+            AppTheme.menstrualPhase,
+            AppTheme.menstrualPhase.withOpacity(0.7)
+          ],
+        );
       case 'follicular':
-        return '🌱';
+        return LinearGradient(
+          colors: [
+            AppTheme.follicularPhase,
+            AppTheme.follicularPhase.withOpacity(0.7)
+          ],
+        );
       case 'ovulation':
-        return '🌸';
+        return LinearGradient(
+          colors: [
+            AppTheme.ovulationPhase,
+            AppTheme.ovulationPhase.withOpacity(0.7)
+          ],
+        );
       case 'luteal':
-        return '🍂';
+        return LinearGradient(
+          colors: [
+            AppTheme.lutealPhase,
+            AppTheme.lutealPhase.withOpacity(0.7)
+          ],
+        );
       default:
-        return '💫';
+        return LinearGradient(
+          colors: [AppTheme.primaryPink, AppTheme.primaryPurple],
+        );
     }
   }
-  
-  String _getPhaseName(String phase) {
+
+  IconData _getPhaseIcon(String phase) {
+    switch (phase) {
+      case 'menstrual':
+        return Icons.water_drop;
+      case 'follicular':
+        return Icons.eco;
+      case 'ovulation':
+        return Icons.wb_sunny;
+      case 'luteal':
+        return Icons.nightlight;
+      default:
+        return Icons.favorite;
+    }
+  }
+
+  String _getPhaseTitle(String phase) {
     switch (phase) {
       case 'menstrual':
         return 'Menstrual Phase';
@@ -78,653 +610,165 @@ class _TodayScreenState extends State<TodayScreen>
       case 'luteal':
         return 'Luteal Phase';
       default:
-        return 'Getting Started';
+        return 'Current Phase';
     }
   }
-  
+
   String _getPhaseDescription(String phase) {
     switch (phase) {
       case 'menstrual':
-        return 'Your period is here. Take it easy and rest when needed.';
+        return 'Your body is shedding the uterine lining. Rest, stay hydrated, and be gentle with yourself.';
       case 'follicular':
-        return 'Energy is building. Great time for new activities!';
+        return 'Energy is building! Great time for new projects and physical activity.';
       case 'ovulation':
-        return 'Peak energy and confidence. Make the most of it!';
+        return 'You\'re at your peak! Confidence and energy are high. Perfect for important tasks.';
       case 'luteal':
-        return 'Body is preparing. Practice self-care.';
+        return 'Your body is preparing. Focus on self-care and listen to your needs.';
       default:
-        return 'Start logging to see insights about your cycle.';
+        return 'Track your cycle to see personalized insights here.';
     }
   }
-  
-  List<Map<String, dynamic>> _getRecommendations(String phase, Map<String, dynamic>? healthData) {
-    final baseRecommendations = _getPhaseRecommendations(phase);
-    final healthRecommendations = _getHealthBasedRecommendations(healthData);
-    
-    return [...baseRecommendations, ...healthRecommendations];
-  }
-  
-  List<Map<String, dynamic>> _getPhaseRecommendations(String phase) {
+
+  List<Map<String, dynamic>> _getRecommendations(String phase) {
     switch (phase) {
       case 'menstrual':
         return [
           {
-            'icon': Icons.water_drop,
-            'title': 'Stay Hydrated',
-            'description': 'Drink 8-10 glasses of water to reduce bloating',
-            'color': const Color(0xFF64B5F6),
+            'title': 'Rest & Recovery',
+            'description':
+                'Your body is working hard. Prioritize sleep and gentle movement like yoga or walking.',
+            'icon': Icons.bed,
+            'color': AppTheme.menstrualPhase,
           },
           {
-            'icon': Icons.self_improvement,
-            'title': 'Gentle Yoga',
-            'description': 'Try restorative poses to ease cramps',
-            'color': const Color(0xFF81C784),
+            'title': 'Warm Comfort',
+            'description':
+                'Use a heating pad for cramps. Warm baths with Epsom salt can help relax muscles.',
+            'icon': Icons.hot_tub,
+            'color': AppTheme.menstrualPhase,
           },
           {
-            'icon': Icons.local_fire_department,
-            'title': 'Heat Therapy',
-            'description': 'Use a heating pad for 15-20 minutes',
-            'color': const Color(0xFFFFB74D),
-          },
-          {
-            'icon': Icons.restaurant,
             'title': 'Iron-Rich Foods',
-            'description': 'Eat spinach, lentils, and lean meats',
-            'color': const Color(0xFFE57373),
+            'description':
+                'Replenish iron with spinach, red meat, or lentils to combat fatigue.',
+            'icon': Icons.restaurant,
+            'color': AppTheme.menstrualPhase,
+          },
+          {
+            'title': 'Hydration Boost',
+            'description':
+                'Drink plenty of water and herbal teas to reduce bloating and support your body.',
+            'icon': Icons.local_drink,
+            'color': AppTheme.menstrualPhase,
           },
         ];
-        
+
       case 'follicular':
         return [
           {
+            'title': 'High Energy Workouts',
+            'description':
+                'Your energy is rising! Perfect time for cardio, strength training, or trying new classes.',
             'icon': Icons.fitness_center,
-            'title': 'High-Intensity Workouts',
-            'description': 'Perfect time for HIIT and strength training',
-            'color': const Color(0xFFFF7043),
+            'color': AppTheme.follicularPhase,
           },
           {
+            'title': 'Creative Projects',
+            'description':
+                'Mental clarity is peaking. Start new projects, brainstorm, and tackle challenges.',
             'icon': Icons.lightbulb,
-            'title': 'Start New Projects',
-            'description': 'Your focus and creativity are peaking',
-            'color': const Color(0xFFFFCA28),
+            'color': AppTheme.follicularPhase,
           },
           {
-            'icon': Icons.group,
-            'title': 'Social Activities',
-            'description': 'Great energy for meeting friends',
-            'color': const Color(0xFF9575CD),
+            'title': 'Social Connections',
+            'description':
+                'You\'re feeling outgoing! Great time to connect with friends and network.',
+            'icon': Icons.people,
+            'color': AppTheme.follicularPhase,
           },
           {
-            'icon': Icons.apple,
-            'title': 'Balanced Nutrition',
-            'description': 'Focus on complex carbs and lean proteins',
-            'color': const Color(0xFF66BB6A),
+            'title': 'Fresh Foods',
+            'description':
+                'Focus on fresh vegetables, fruits, and lean proteins to support your energy.',
+            'icon': Icons.eco,
+            'color': AppTheme.follicularPhase,
           },
         ];
-        
+
       case 'ovulation':
         return [
           {
-            'icon': Icons.psychology,
-            'title': 'Important Meetings',
-            'description': 'Peak confidence and communication skills',
-            'color': const Color(0xFF5C6BC0),
+            'title': 'Peak Performance',
+            'description':
+                'You\'re at your strongest! Schedule important meetings, presentations, or workouts.',
+            'icon': Icons.star,
+            'color': AppTheme.ovulationPhase,
           },
           {
-            'icon': Icons.favorite,
-            'title': 'Romantic Time',
-            'description': 'Natural peak in libido and connection',
-            'color': const Color(0xFFEC407A),
+            'title': 'Communication',
+            'description':
+                'Confidence is high. Perfect for difficult conversations and expressing yourself.',
+            'icon': Icons.chat_bubble,
+            'color': AppTheme.ovulationPhase,
           },
           {
+            'title': 'Intense Workouts',
+            'description':
+                'Push your limits with HIIT, running, or challenging strength sessions.',
             'icon': Icons.directions_run,
-            'title': 'Cardio Workouts',
-            'description': 'Maximum energy and stamina',
-            'color': const Color(0xFFFF7043),
+            'color': AppTheme.ovulationPhase,
           },
           {
-            'icon': Icons.emoji_people,
-            'title': 'Be Social',
-            'description': 'You\'re naturally more outgoing now',
-            'color': const Color(0xFF26A69A),
+            'title': 'Colorful Meals',
+            'description':
+                'Enjoy vibrant salads, smoothies, and nutrient-dense foods to match your energy.',
+            'icon': Icons.food_bank,
+            'color': AppTheme.ovulationPhase,
           },
         ];
-        
+
       case 'luteal':
         return [
           {
+            'title': 'Gentle Exercise',
+            'description':
+                'Switch to yoga, pilates, or walks. Your body needs less intensity now.',
+            'icon': Icons.self_improvement,
+            'color': AppTheme.lutealPhase,
+          },
+          {
+            'title': 'Comfort Foods',
+            'description':
+                'It\'s okay to indulge mindfully. Dark chocolate and complex carbs can help mood.',
+            'icon': Icons.cookie,
+            'color': AppTheme.lutealPhase,
+          },
+          {
+            'title': 'Self-Care Rituals',
+            'description':
+                'Face masks, relaxing baths, and quiet time. Nurture yourself this week.',
             'icon': Icons.spa,
-            'title': 'Extra Self-Care',
-            'description': 'Prioritize rest and relaxation',
-            'color': const Color(0xFF9575CD),
+            'color': AppTheme.lutealPhase,
           },
           {
-            'icon': Icons.restaurant_menu,
-            'title': 'Healthy Snacks',
-            'description': 'Choose complex carbs to stabilize mood',
-            'color': const Color(0xFF66BB6A),
-          },
-          {
-            'icon': Icons.bed,
-            'title': 'Quality Sleep',
-            'description': 'Aim for 8-9 hours of sleep',
-            'color': const Color(0xFF5C6BC0),
-          },
-          {
-            'icon': Icons.sentiment_satisfied,
-            'title': 'Be Patient',
-            'description': 'PMS symptoms are normal and temporary',
-            'color': const Color(0xFFFFCA28),
+            'title': 'Journal & Reflect',
+            'description':
+                'Process emotions through writing. This phase brings introspection and insight.',
+            'icon': Icons.book,
+            'color': AppTheme.lutealPhase,
           },
         ];
-        
+
       default:
-        return [];
-    }
-  }
-  
-  List<Map<String, dynamic>> _getHealthBasedRecommendations(Map<String, dynamic>? healthData) {
-    final List<Map<String, dynamic>> recommendations = [];
-    
-    if (healthData != null) {
-      final bmi = healthData['bmi'] as double?;
-      
-      if (bmi != null) {
-        if (bmi < 18.5) {
-          recommendations.add({
-            'icon': Icons.trending_up,
-            'title': 'Increase Caloric Intake',
-            'description': 'Consider nutrient-dense foods',
-            'color': const Color(0xFF26A69A),
-          });
-        } else if (bmi > 25) {
-          recommendations.add({
-            'icon': Icons.directions_walk,
-            'title': 'Regular Exercise',
-            'description': '30 minutes daily walking recommended',
-            'color': const Color(0xFF66BB6A),
-          });
-        }
-      }
-    }
-    
-    return recommendations;
-  }
-  
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.almostWhite,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            final provider = Provider.of<CycleProvider>(context, listen: false);
-            await provider.loadCurrentInsights();
-            await provider.loadCycles();
-            
-            _animationController.reset();
-            _animationController.forward();
+        return [
+          {
+            'title': 'Start Tracking',
+            'description':
+                'Log your cycle to get personalized recommendations based on your phase.',
+            'icon': Icons.calendar_today,
+            'color': AppTheme.primaryPink,
           },
-          color: AppTheme.primaryPink,
-          child: Consumer2<CycleProvider, HealthProvider>(
-            builder: (context, cycleProvider, healthProvider, child) {
-              final insights = cycleProvider.currentInsights;
-              final hasData = insights?['hasData'] ?? false;
-              final phase = cycleProvider.currentPhase;
-              final daysSinceStart = cycleProvider.daysSinceStart;
-              
-              if (cycleProvider.isLoading) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryPink),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text('Loading your insights...'),
-                    ],
-                  ),
-                );
-              }
-              
-              return FadeTransition(
-                opacity: _fadeAnimation,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(AppTheme.spaceL),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildHeader(),
-                        
-                        const SizedBox(height: AppTheme.spaceXL),
-                        
-                        if (hasData) ...[
-                          // Panda Mascot
-                          _buildPandaSection(phase, daysSinceStart),
-                          
-                          const SizedBox(height: AppTheme.spaceL),
-                          
-                          _buildPhaseCard(cycleProvider),
-                          
-                          const SizedBox(height: AppTheme.spaceL),
-                          
-                          _buildRecommendationsSection(phase, healthProvider.healthMetrics),
-                          
-                          const SizedBox(height: AppTheme.spaceL),
-                          
-                          if (insights?['prediction'] != null)
-                            _buildPredictionCard(insights!),
-                          
-                          const SizedBox(height: AppTheme.spaceL),
-                          
-                          _buildCycleStats(insights),
-                        ] else ...[
-                          _buildWelcomeCard(),
-                        ],
-                        
-                        const SizedBox(height: AppTheme.spaceXXL),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Today',
-          style: Theme.of(context).textTheme.displayLarge,
-        ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
-        const SizedBox(height: AppTheme.spaceS),
-        Text(
-          DateFormat('EEEE, MMMM d').format(DateTime.now()),
-          style: Theme.of(context).textTheme.bodyMedium,
-        ).animate().fadeIn(delay: 200.ms),
-      ],
-    );
-  }
-  
-  Widget _buildPandaSection(String phase, int daysSinceStart) {
-    final totalCycleDays = 28;
-    final progress = (daysSinceStart / totalCycleDays).clamp(0.0, 1.0);
-    
-    return GlassCard(
-      margin: EdgeInsets.zero,
-      child: Container(
-        height: 200,
-        child: PandaMascot(
-          phase: phase,
-          cycleDay: daysSinceStart,
-          progressPercentage: progress,
-        ),
-      ),
-    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2);
-  }
-  
-  Widget _buildPhaseCard(CycleProvider provider) {
-    final phase = provider.currentPhase;
-    final daysSinceStart = provider.daysSinceStart;
-    
-    return Hero(
-      tag: 'phase_card',
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppTheme.spaceL),
-          decoration: BoxDecoration(
-            gradient: AppTheme.phaseGradient(phase),
-            borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryPink.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: AppTheme.slow,
-                builder: (context, value, child) {
-                  return Transform.scale(
-                    scale: value,
-                    child: Text(
-                      _getPhaseEmoji(phase),
-                      style: TextStyle(fontSize: 80 * value),
-                    ),
-                  );
-                },
-              ),
-              
-              const SizedBox(height: AppTheme.spaceM),
-              
-              Text(
-                _getPhaseName(phase),
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              
-              const SizedBox(height: AppTheme.spaceS),
-              
-              Text(
-                'Day $daysSinceStart of your cycle',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white.withOpacity(0.9),
-                ),
-              ),
-              
-              const SizedBox(height: AppTheme.spaceM),
-              
-              Text(
-                _getPhaseDescription(phase),
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white.withOpacity(0.9),
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    ).animate().fadeIn(delay: 600.ms).scale();
-  }
-  
-  Widget _buildRecommendationsSection(String phase, Map<String, dynamic>? healthData) {
-    final recommendations = _getRecommendations(phase, healthData);
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.lightbulb, color: AppTheme.primaryPink),
-            const SizedBox(width: AppTheme.spaceS),
-            Text(
-              'Recommendations for You',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-          ],
-        ).animate().fadeIn(delay: 800.ms),
-        
-        const SizedBox(height: AppTheme.spaceM),
-        
-        SizedBox(
-          height: 160,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: recommendations.length,
-            itemBuilder: (context, index) {
-              final rec = recommendations[index];
-              return Container(
-                width: 280,
-                margin: EdgeInsets.only(
-                  right: index < recommendations.length - 1 ? AppTheme.spaceM : 0,
-                ),
-                child: RecommendationCard(
-                  icon: rec['icon'],
-                  title: rec['title'],
-                  description: rec['description'],
-                  color: rec['color'],
-                ),
-              ).animate(delay: Duration(milliseconds: 900 + (index * 100)))
-                .fadeIn()
-                .slideX(begin: 0.2);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildPredictionCard(Map<String, dynamic> insights) {
-    final prediction = insights['prediction'];
-    if (prediction == null) return const SizedBox.shrink();
-    
-    return GlassCard(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spaceL),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, color: AppTheme.primaryPink),
-                const SizedBox(width: AppTheme.spaceS),
-                Text(
-                  'Next Period Prediction',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: AppTheme.spaceM),
-            
-            Text(
-              'Expected around',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            
-            const SizedBox(height: AppTheme.spaceXS),
-            
-            Text(
-              DateFormat('MMMM d, yyyy').format(
-                DateTime.parse(prediction['nextPeriodDate']),
-              ),
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryPink,
-              ),
-            ),
-            
-            const SizedBox(height: AppTheme.spaceM),
-            
-            Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                    child: LinearProgressIndicator(
-                      value: (prediction['confidence'] as num?)?.toDouble() ?? 0.5,
-                      backgroundColor: AppTheme.blushPink,
-                      valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryPink),
-                      minHeight: 8,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spaceM),
-                Text(
-                  '${((prediction['confidence'] as num) * 100).toInt()}%',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppTheme.primaryPink,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: AppTheme.spaceS),
-            
-            Text(
-              'Based on your past ${insights['totalCycles'] ?? 0} cycles',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(delay: 1000.ms).slideY(begin: 0.2);
-  }
-  
-  Widget _buildCycleStats(Map<String, dynamic>? insights) {
-    return GlassCard(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spaceL),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your Cycle Stats',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            
-            const SizedBox(height: AppTheme.spaceL),
-            
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    '${insights?['avgCycleLength'] ?? 28}',
-                    'Avg Length',
-                    Icons.calendar_month,
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 60,
-                  color: AppTheme.divider,
-                ),
-                Expanded(
-                  child: _buildStatItem(
-                    '${insights?['totalCycles'] ?? 0}',
-                    'Cycles Logged',
-                    Icons.trending_up,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(delay: 1200.ms).slideY(begin: 0.2);
-  }
-  
-  Widget _buildStatItem(String value, String label, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: AppTheme.primaryPink, size: 28),
-        const SizedBox(height: AppTheme.spaceS),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.primaryPink,
-          ),
-        ),
-        const SizedBox(height: AppTheme.spaceXS),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium,
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildWelcomeCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppTheme.spaceXL),
-      decoration: BoxDecoration(
-        gradient: AppTheme.primaryGradient,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryPink.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const Icon(
-            Icons.favorite_border,
-            size: 80,
-            color: Colors.white,
-          ),
-          
-          const SizedBox(height: AppTheme.spaceL),
-          
-          const Text(
-            'Welcome to Solaris!',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          
-          const SizedBox(height: AppTheme.spaceM),
-          
-          Text(
-            'Start logging your cycle to see personalized insights, predictions, and meet your panda companion!',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.white.withOpacity(0.9),
-              height: 1.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          
-          const SizedBox(height: AppTheme.spaceXL),
-          
-          ElevatedButton.icon(
-            onPressed: () {
-              // Simple navigation - no HomeScreen.of(context)
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) => HomeScreen(),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppTheme.primaryPink,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spaceXL,
-                vertical: AppTheme.spaceM,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
-            ),
-            icon: const Icon(Icons.add_circle_outline),
-            label: const Text(
-              'Log Your First Period',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn().scale();
+        ];
+    }
   }
 }

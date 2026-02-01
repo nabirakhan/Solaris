@@ -118,10 +118,10 @@ class _HealthMetricsScreenState extends State<HealthMetricsScreen> {
   }
 
   Color _getBMIColor(double bmi) {
-    if (bmi < 18.5) return AppTheme.warningColor;
-    if (bmi < 25) return AppTheme.successColor;
-    if (bmi < 30) return AppTheme.warningColor;
-    return AppTheme.errorColor;
+    if (bmi < 18.5) return AppTheme.warning;
+    if (bmi < 25) return AppTheme.success;
+    if (bmi < 30) return AppTheme.warning;
+    return AppTheme.error;
   }
 
   Future<void> _saveMetrics() async {
@@ -131,7 +131,7 @@ class _HealthMetricsScreenState extends State<HealthMetricsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Please select your birthdate'),
-          backgroundColor: AppTheme.errorColor,
+          backgroundColor: AppTheme.error,
         ),
       );
       return;
@@ -150,7 +150,7 @@ class _HealthMetricsScreenState extends State<HealthMetricsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Health metrics saved!'),
-          backgroundColor: AppTheme.successColor,
+          backgroundColor: AppTheme.success,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -158,7 +158,7 @@ class _HealthMetricsScreenState extends State<HealthMetricsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to save metrics'),
-          backgroundColor: AppTheme.errorColor,
+          backgroundColor: AppTheme.error,
           behavior: SnackBarBehavior.floating,
         ),
       );
