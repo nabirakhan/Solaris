@@ -1,8 +1,53 @@
+# Flask Core
 flask==3.0.0
 flask-cors==4.0.0
 flask-jwt-extended==4.6.0
-pymongo==4.6.1
-python-dotenv==1.0.0
 werkzeug==3.0.1
+
+# Database
+pymongo==4.6.1
+
+# Security
 bcrypt==4.1.2
+python-dotenv==1.0.0
+
+# Machine Learning & Data Science
+numpy==1.26.3
+pandas==2.1.4
+scikit-learn==1.4.0
+scipy==1.11.4
+
+# Advanced ML for predictions
+prophet==1.1.5
+statsmodels==0.14.1
+xgboost==2.0.3
+
+# Time series analysis
+tensorflow==2.15.0
+keras==2.15.0
+
+# Data preprocessing
+imbalanced-learn==0.12.0
+
+# Visualization & Analysis
+matplotlib==3.8.2
+seaborn==0.13.1
+
+# API & Utilities
+requests==2.31.0
+python-dateutil==2.8.2
+pytz==2024.1
+
+# Image processing (for future features)
 pillow==10.2.0
+
+# Caching for performance
+redis==5.0.1
+cachetools==5.3.2
+
+# Logging & Monitoring
+loguru==0.7.2
+
+# Testing
+pytest==7.4.3
+pytest-cov==4.1.0

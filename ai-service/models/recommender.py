@@ -1,217 +1,279 @@
-# File: ai-service/models/recommender.py
-from typing import Dict, List, Optional
-from datetime import datetime
+# File: ai-service/models/recommender_advanced.py
+from typing import Dict, List, Optional, Tuple
+from datetime import datetime, timedelta
+import numpy as np
 
-class RecommenderSystem:
-    """
-    Enhanced recommender with health-based suggestions
-    """
+class AdvancedRecommenderSystem:
+    """AI-powered recommendation system with personalization"""
     
     def __init__(self):
-        self.confidence_threshold_high = 0.75
-        self.confidence_threshold_medium = 0.50
-        self.anomaly_threshold = 0.65
+        self.confidence_thresholds = {'high': 0.75, 'medium': 0.50, 'low': 0.35}
+        self.anomaly_thresholds = {'significant': 0.75, 'moderate': 0.50, 'mild': 0.30}
     
-    def decide_display_strategy(self, prediction_data: Optional[Dict], 
-                               anomaly_data: Dict, 
-                               user_engagement: Dict) -> Dict:
-        """
-        Enhanced display strategy decision
-        """
+    def generate_comprehensive_recommendations(self, prediction: Optional[Dict],
+                                              anomaly: Dict, symptom_insights: Optional[Dict],
+                                              health_insights: Optional[Dict],
+                                              user_engagement: Dict,
+                                              cycles: List[Dict]) -> Dict:
+        """Generate comprehensive personalized recommendations"""
         recommendations = {
-            'showPrediction': False,
-            'showAnomalyAlert': False,
-            'showConfidenceLevel': False,
-            'uiMode': 'minimal',
-            'promptForMoreData': False,
-            'displayPriority': 0,
-            'message': None,
-            'encouragement': None
+            'lifestyle': [],
+            'medical': [],
+            'tracking': [],
+            'wellness': [],
+            'priority': [],
+            'displayStrategy': self._determine_display_strategy(prediction, anomaly, user_engagement)
         }
         
-        confidence = prediction_data.get('confidence', 0) if prediction_data else 0
-        cycles_analyzed = prediction_data.get('cyclesAnalyzed', 0) if prediction_data else 0
-        anomaly_detected = anomaly_data.get('detected', False)
-        anomaly_score = anomaly_data.get('score', 0)
-        anomaly_severity = anomaly_data.get('severity', 'none')
+        # Cycle-based recommendations
+        if prediction:
+            recommendations['lifestyle'].extend(self._get_cycle_recommendations(prediction))
         
-        # Decision 1: Show predictions
-        if confidence >= self.confidence_threshold_medium and cycles_analyzed >= 2:
-            recommendations['showPrediction'] = True
-            
-            if confidence >= self.confidence_threshold_high:
-                recommendations['uiMode'] = 'minimal'
-                recommendations['message'] = 'Based on your consistent patterns'
-                recommendations['encouragement'] = 'Great tracking!'
-            else:
-                recommendations['uiMode'] = 'standard'
-                recommendations['showConfidenceLevel'] = True
-                recommendations['message'] = 'Predicted from your cycle history'
+        # Anomaly-based
+        if anomaly.get('detected'):
+            recommendations['medical'].extend(self._get_anomaly_recommendations(anomaly))
         
-        # Decision 2: Anomaly alerts
-        if anomaly_detected:
-            if anomaly_severity == 'significant':
-                recommendations['showAnomalyAlert'] = True
-                recommendations['uiMode'] = 'detailed'
-                recommendations['displayPriority'] = 3
-                recommendations['message'] = 'Significant change detected in your cycle'
-            elif anomaly_severity == 'moderate':
-                recommendations['showAnomalyAlert'] = True
-                recommendations['displayPriority'] = 2
-                recommendations['message'] = 'We noticed a change in your cycle pattern'
+        # Symptom-based
+        if symptom_insights and symptom_insights.get('hasData'):
+            recommendations['wellness'].extend(self._get_symptom_recommendations(symptom_insights))
         
-        # Decision 3: Request more data
-        if cycles_analyzed < 3:
-            recommendations['promptForMoreData'] = True
-            recommendations['message'] = 'Log a few more cycles for better predictions'
-            recommendations['encouragement'] = 'You\'re making great progress!'
-        elif cycles_analyzed >= 6:
-            recommendations['encouragement'] = 'Excellent tracking consistency!'
+        # Health-based
+        if health_insights:
+            recommendations['lifestyle'].extend(self._get_health_recommendations(health_insights))
         
-        # Decision 4: User engagement
-        days_since_last_log = user_engagement.get('daysSinceLastLog', 0)
-        consistency_score = user_engagement.get('consistencyScore', 0)
+        # Engagement-based
+        recommendations['tracking'].extend(self._get_engagement_recommendations(user_engagement))
         
-        if days_since_last_log > 7:
-            recommendations['uiMode'] = 'gentle_reentry'
-            recommendations['message'] = 'Welcome back! Continue your journey'
-        elif consistency_score > 0.8:
-            recommendations['encouragement'] = 'Your consistency is impressive!'
-        
-        # Decision 5: Display priority
-        if anomaly_detected and anomaly_severity == 'significant':
-            recommendations['displayPriority'] = 3
-        elif recommendations['showPrediction'] and confidence >= self.confidence_threshold_high:
-            recommendations['displayPriority'] = 2
-        elif recommendations['promptForMoreData']:
-            recommendations['displayPriority'] = 1
+        # Prioritize recommendations
+        recommendations['priority'] = self._prioritize_recommendations(recommendations, anomaly, health_insights)
         
         return recommendations
     
-    def generate_insight_text(self, prediction_data: Optional[Dict], 
-                             anomaly_data: Dict, 
-                             recommendations: Dict) -> List[str]:
-        """
-        Enhanced insight generation
-        """
+    def _get_cycle_recommendations(self, prediction: Dict) -> List[Dict]:
+        """Generate cycle-specific recommendations"""
+        recs = []
+        confidence = prediction.get('confidence', 0)
+        cycles_analyzed = prediction.get('cyclesAnalyzed', 0)
+        
+        if confidence >= 0.80:
+            recs.append({
+                'title': 'Plan Ahead with Confidence',
+                'description': 'Your cycles are predictable - schedule important events accordingly',
+                'action': 'Use predictions for planning',
+                'priority': 'medium'
+            })
+        elif cycles_analyzed < 6:
+            recs.append({
+                'title': 'Build Prediction Accuracy',
+                'description': f'Log {6 - cycles_analyzed} more cycles for better predictions',
+                'action': 'Continue consistent tracking',
+                'priority': 'high'
+            })
+        
+        return recs
+    
+    def _get_anomaly_recommendations(self, anomaly: Dict) -> List[Dict]:
+        """Generate anomaly-based recommendations"""
+        recs = []
+        severity = anomaly.get('severity', 'none')
+        
+        if severity == 'significant':
+            recs.append({
+                'title': 'Monitor Cycle Changes',
+                'description': anomaly.get('description', ''),
+                'action': 'Consider medical consultation if pattern continues',
+                'priority': 'high'
+            })
+        elif severity == 'moderate':
+            recs.append({
+                'title': 'Track Unusual Changes',
+                'description': anomaly.get('description', ''),
+                'action': 'Log symptoms to identify causes',
+                'priority': 'medium'
+            })
+        
+        return recs
+    
+    def _get_symptom_recommendations(self, symptom_insights: Dict) -> List[Dict]:
+        """Generate symptom-based recommendations"""
+        return symptom_insights.get('recommendations', [])[:5]
+    
+    def _get_health_recommendations(self, health_insights: Dict) -> List[Dict]:
+        """Generate health-based recommendations"""
+        return health_insights.get('recommendations', [])[:5]
+    
+    def _get_engagement_recommendations(self, engagement: Dict) -> List[Dict]:
+        """Generate engagement recommendations"""
+        recs = []
+        consistency = engagement.get('consistencyScore', 0)
+        streak = engagement.get('trackingStreak', 0)
+        
+        if consistency < 0.5:
+            recs.append({
+                'title': 'Build Tracking Consistency',
+                'description': 'Regular logging improves prediction accuracy',
+                'action': 'Set daily reminder for tracking',
+                'priority': 'high'
+            })
+        elif streak >= 7:
+            recs.append({
+                'title': f'{streak}-Day Streak! 🎉',
+                'description': 'Amazing consistency - keep it up!',
+                'action': 'Continue your tracking habit',
+                'priority': 'low'
+            })
+        
+        return recs
+    
+    def _prioritize_recommendations(self, recommendations: Dict, anomaly: Dict,
+                                   health_insights: Optional[Dict]) -> List[Dict]:
+        """Prioritize all recommendations"""
+        all_recs = []
+        for category, recs in recommendations.items():
+            if category != 'priority' and isinstance(recs, list):
+                all_recs.extend(recs)
+        
+        # Sort by priority
+        priority_order = {'high': 3, 'medium': 2, 'low': 1}
+        all_recs.sort(key=lambda x: priority_order.get(x.get('priority', 'low'), 0), reverse=True)
+        
+        return all_recs[:10]
+    
+    def _determine_display_strategy(self, prediction: Optional[Dict], anomaly: Dict,
+                                   engagement: Dict) -> Dict:
+        """Determine UI display strategy"""
+        strategy = {
+            'mode': 'standard',
+            'showPrediction': False,
+            'showAnomalyAlert': False,
+            'showEncouragement': False,
+            'highlightPriority': None
+        }
+        
+        if prediction and prediction.get('confidence', 0) >= 0.6:
+            strategy['showPrediction'] = True
+        
+        if anomaly.get('severity') in ['significant', 'moderate']:
+            strategy['showAnomalyAlert'] = True
+            strategy['highlightPriority'] = 'anomaly'
+        
+        if engagement.get('trackingStreak', 0) >= 7:
+            strategy['showEncouragement'] = True
+        
+        return strategy
+    
+    def assess_overall_risk(self, anomaly: Dict, symptom_insights: Optional[Dict],
+                           health_insights: Optional[Dict]) -> Dict:
+        """Assess overall health risk"""
+        risk_score = 0
+        risk_factors = []
+        
+        # Anomaly risk
+        if anomaly.get('severity') == 'significant':
+            risk_score += 3
+            risk_factors.append('Significant cycle anomaly detected')
+        elif anomaly.get('severity') == 'moderate':
+            risk_score += 2
+            risk_factors.append('Moderate cycle variation')
+        
+        # Symptom risk
+        if symptom_insights and symptom_insights.get('riskAssessment'):
+            symptom_risk = symptom_insights['riskAssessment']
+            if symptom_risk.get('level') == 'high':
+                risk_score += 3
+                risk_factors.append('High symptom severity')
+            elif symptom_risk.get('level') == 'moderate':
+                risk_score += 2
+                risk_factors.append('Moderate symptom burden')
+        
+        # Health risk
+        if health_insights and health_insights.get('riskAssessment'):
+            health_risk = health_insights['riskAssessment']
+            if health_risk.get('level') == 'high':
+                risk_score += 3
+                risk_factors.extend(health_risk.get('factors', []))
+            elif health_risk.get('level') == 'moderate':
+                risk_score += 2
+        
+        # Determine overall level
+        if risk_score >= 6:
+            level = 'high'
+            action = 'Medical consultation recommended'
+        elif risk_score >= 3:
+            level = 'moderate'
+            action = 'Monitor closely and consider consultation'
+        else:
+            level = 'low'
+            action = 'Continue regular tracking'
+        
+        return {
+            'level': level,
+            'score': risk_score,
+            'factors': risk_factors,
+            'recommendedAction': action,
+            'requiresAttention': risk_score >= 4
+        }
+    
+    def generate_personalized_insights(self, prediction: Optional[Dict], anomaly: Dict,
+                                      symptom_insights: Optional[Dict],
+                                      health_insights: Optional[Dict],
+                                      recommendations: Dict) -> List[str]:
+        """Generate personalized insights"""
         insights = []
         
-        if not prediction_data:
-            return ['Start logging your cycle to see personalized insights']
-        
-        if recommendations['showPrediction']:
-            confidence = prediction_data.get('confidence', 0)
-            cycles = prediction_data.get('cyclesAnalyzed', 0)
-            quality = prediction_data.get('predictionQuality', '')
+        # Prediction insights
+        if prediction:
+            quality = prediction.get('predictionQuality', '')
+            if 'Excellent' in quality:
+                insights.append('Your cycle patterns are highly predictable! 🎯')
             
-            if confidence >= 0.85:
-                insights.append(f'Your cycle patterns are very clear ({int(confidence*100)}% confidence)')
-            elif confidence >= 0.7:
-                insights.append(f'Your patterns are becoming clearer - {cycles} cycles analyzed')
-            elif confidence >= 0.5:
-                insights.append(f'Early predictions based on {cycles} cycles')
-            
-            if quality:
-                insights.append(f'Prediction quality: {quality}')
+            regularity = prediction.get('regularityScore', 0)
+            if regularity > 0.9:
+                insights.append('Your cycle is remarkably consistent')
         
-        if recommendations['showAnomalyAlert']:
-            description = anomaly_data.get('description', '')
-            recommendation = anomaly_data.get('recommendation', '')
-            insights.append(description)
-            if recommendation:
-                insights.append(recommendation)
+        # Anomaly insights
+        if anomaly.get('detected'):
+            insights.append(anomaly.get('description', ''))
         
-        # Add variability insights
-        variability = prediction_data.get('variability', 0)
-        regularity_score = prediction_data.get('regularityScore', 0)
+        # Symptom insights
+        if symptom_insights and symptom_insights.get('overallPattern'):
+            pattern = symptom_insights['overallPattern']
+            insights.append(pattern.get('description', ''))
         
-        if regularity_score > 0.9:
-            insights.append('Your cycle is remarkably consistent')
-        elif regularity_score > 0.7:
-            insights.append('Your cycle shows good regularity')
-        elif variability > 0.2:
-            insights.append('Your cycle length varies - this is normal for many people')
+        # Health insights
+        if health_insights and health_insights.get('overallScore'):
+            score_data = health_insights['overallScore']
+            insights.append(f"Health score: {score_data.get('score', 0)}/100 - {score_data.get('rating', 'good')}")
         
-        # Encouragement
-        if recommendations.get('encouragement'):
-            insights.append(recommendations['encouragement'])
-        
-        return insights
+        return insights[:5]
     
-    def should_request_symptom_log(self, last_symptom_log_date: Optional[str], 
-                                   current_cycle_day: int) -> tuple:
-        """
-        Enhanced symptom logging prompts
-        """
-        if not last_symptom_log_date:
-            return True, 'How are you feeling today?'
+    def should_request_symptom_log(self, last_log_date: Optional[str],
+                                   current_cycle_day: int,
+                                   symptoms: List[Dict]) -> Tuple[bool, Optional[str]]:
+        """Intelligent symptom logging prompts"""
+        if not last_log_date:
+            return True, 'Start tracking your symptoms today'
         
         try:
-            last_log = datetime.fromisoformat(last_symptom_log_date.replace('Z', '+00:00'))
-            days_since_log = (datetime.now() - last_log).days
+            last_log = datetime.fromisoformat(last_log_date.replace('Z', '+00:00'))
+            days_since = (datetime.now() - last_log).days
         except:
-            return True, 'Log your symptoms to track patterns'
+            return True, 'Log your symptoms regularly'
         
-        # Menstrual phase - log daily
-        if 1 <= current_cycle_day <= 5 and days_since_log >= 1:
-            return True, 'Track your period symptoms today'
+        # Critical days during menstrual phase
+        if 1 <= current_cycle_day <= 5 and days_since >= 1:
+            return True, 'Track your period symptoms'
         
-        # Ovulation phase - important to track
-        if 13 <= current_cycle_day <= 17 and days_since_log >= 1:
-            return True, 'You\'re in your fertile window - log any symptoms'
+        # Ovulation window
+        if 13 <= current_cycle_day <= 17 and days_since >= 1:
+            return True, 'You\'re in your fertile window'
         
-        # Luteal phase - watch for PMS
-        if current_cycle_day >= 20 and days_since_log >= 2:
-            return True, 'Track PMS symptoms if any'
+        # PMS tracking
+        if current_cycle_day >= 20 and days_since >= 2:
+            return True, 'Monitor for PMS symptoms'
         
         # General reminder
-        if days_since_log >= 3:
+        if days_since >= 3:
             return True, 'Time to log your symptoms'
         
         return False, None
-    
-    def get_health_recommendations(self, health_insights: Dict) -> List[Dict]:
-        """
-        Generate health-based recommendations
-        NEW METHOD
-        """
-        recommendations = []
-        
-        if not health_insights:
-            return recommendations
-        
-        bmi_category = health_insights.get('bmiCategory')
-        bmi_value = health_insights.get('bmi')
-        
-        if bmi_category == 'underweight':
-            recommendations.append({
-                'type': 'nutrition',
-                'title': 'Increase Nutrient Intake',
-                'description': 'Focus on nutrient-dense foods to support your cycle',
-                'priority': 'high'
-            })
-        elif bmi_category == 'overweight' or bmi_category == 'obese':
-            recommendations.append({
-                'type': 'exercise',
-                'title': 'Regular Physical Activity',
-                'description': '30 minutes of moderate exercise most days',
-                'priority': 'medium'
-            })
-            recommendations.append({
-                'type': 'nutrition',
-                'title': 'Balanced Diet',
-                'description': 'Focus on whole foods and portion control',
-                'priority': 'medium'
-            })
-        
-        # Age-based recommendations
-        age = health_insights.get('age')
-        if age and age >= 35:
-            recommendations.append({
-                'type': 'health',
-                'title': 'Regular Check-ups',
-                'description': 'Annual health screenings are important',
-                'priority': 'medium'
-            })
-        
-        return recommendations

@@ -88,9 +88,6 @@ class _TodayScreenState extends State<TodayScreen>
                         ],
                       ),
                     ),
-                    // No top padding — mainAxisAlignment: end positions
-                    // the text at the bottom regardless of expanded height.
-                    // The old top: 50 caused overflow when the bar collapsed.
                     padding: EdgeInsets.fromLTRB(24, 0, 24, 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,28 +245,8 @@ class _TodayScreenState extends State<TodayScreen>
   }
 
   Widget _buildPandaSection() {
-    return Consumer<CycleProvider>(
-      builder: (context, provider, child) {
-        final phase = provider.currentPhase;
-        final daysSinceStart = provider.daysSinceStart;
-        final progress = (daysSinceStart % 28) / 28.0;
-
-        return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: GlassCard(
-            margin: EdgeInsets.zero,
-            child: SizedBox(
-              height: 200,
-              child: PandaMascot(
-                phase: phase,
-                cycleDay: daysSinceStart,
-                progressPercentage: progress,
-              ),
-            ),
-          ),
-        );
-      },
-    );
+    // No padding or wrapper - panda travels across full screen width
+    return const EnhancedPandaMascot();
   }
 
   Widget _buildStatsGrid() {
