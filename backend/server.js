@@ -95,6 +95,37 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.get('/', (req, res) => {
+  res.json({
+    message: '🌟 SOLARIS - Period Tracker API',
+    description: 'Backend API for menstrual cycle tracking and health insights',
+    status: 'operational',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'production',
+    server_time: new Date().toISOString(),
+    base_url: process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 5000}`,
+    documentation: {
+      health: '/health',
+      api_docs: '/api-docs (if available)',
+      test_endpoint: '/api/test'
+    },
+    available_endpoints: {
+      auth: '/api/auth',
+      cycles: '/api/cycles',
+      symptoms: '/api/symptoms',
+      insights: '/api/insights',
+      health_api: '/api/health',
+      notifications: '/api/notifications'
+    },
+    services: {
+      ai: process.env.AI_SERVICE_URL || 'https://solaris-ai-service.onrender.com',
+      database: 'PostgreSQL'
+    },
+    repository: 'https://github.com/nabirakhan/Solaris',
+    note: 'Frontend should connect to ' + (process.env.FRONTEND_URL || 'http://localhost:3000')
+  });
+});
+
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API is working!' });
 });
