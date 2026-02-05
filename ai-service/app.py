@@ -28,6 +28,24 @@ symptom_analyzer = AdvancedSymptomAnalyzer()
 health_tracker = AdvancedHealthTracker()
 recommender = AdvancedRecommenderSystem()
 
+# Add this route to your app.py
+@app.route('/')
+def home():
+    return jsonify({
+        'service': 'Solaris AI Service',
+        'version': '3.0.0',
+        'status': 'running',
+        'endpoints': {
+            'health': '/health',
+            'predict': '/predict',
+            'analyze': '/analyze',
+            'symptom-prediction': '/symptom-prediction',
+            'health-analysis': '/health-analysis',
+            'cycle-insights': '/cycle-insights'
+        },
+        'documentation': 'See /health for more details'
+    })
+
 # Error handling decorator
 def handle_errors(f):
     @wraps(f)
