@@ -70,7 +70,8 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'production',
     server_time: new Date().toISOString(),
-    base_url: process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 5000}`,
+    internal_port: process.env.PORT || 5000,
+    external_url: 'https://solaris-vhc8.onrender.com',
     api_base: '/api/*',
     available_endpoints: {
       auth: '/api/auth',
@@ -80,7 +81,7 @@ app.get('/', (req, res) => {
       health_api: '/api/health',
       notifications: '/api/notifications'
     },
-    note: 'Backend API for mobile applications. Connect your Flutter/React Native app to this URL.'
+    note: 'Backend API for mobile applications. Connect your Flutter/React Native app to https://solaris-vhc8.onrender.com'
   });
 });
 
@@ -148,13 +149,16 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
   await testDatabaseConnection();
 
+  // ✅ CRITICAL: Use the port Render provides
   const PORT = process.env.PORT || 5000;
+  
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log('\n🌟 ========================================');
     console.log('🌟 SOLARIS - Period Tracker API');
     console.log('🌟 ========================================');
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🔗 http://localhost:${PORT}`);
+    console.log(`🔗 External: https://solaris-vhc8.onrender.com`);
     console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log('🤖 AI Service:', process.env.AI_SERVICE_URL || 'Not configured');
     console.log('🌟 ========================================\n');
