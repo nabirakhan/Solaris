@@ -5,9 +5,8 @@ from .recommender import AdvancedRecommenderSystem
 from .health_tracker import AdvancedHealthTracker
 
 __all__ = [
-    'CyclePredictor',
-    'SymptomAnalyzer',
-    'RecommenderSystem',
-    'HealthTracker'
+    'AdvancedCyclePredictor',
+    'AdvancedSymptomAnalyzer',
+    'AdvancedRecommenderSystem',
+    'AdvancedHealthTracker'
 ]
-
