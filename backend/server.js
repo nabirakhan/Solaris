@@ -12,27 +12,27 @@ const app = express();
 // MIDDLEWARE
 // ============================================================================
 
-// CORS configuration
+// Update your CORS config (around line 23)
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin
     if (!origin) return callback(null, true);
 
-    // Define allowed origins
     const allowedOrigins = [
       'http://localhost:3000',
       'http://127.0.0.1:3000',
       'http://192.168.100.9:3000',
-      process.env.FRONTEND_URL
+      process.env.FRONTEND_URL,
+      // ✅ Add your Render frontend URL here
+      'https://your-frontend-app.onrender.com' // Replace with your actual frontend URL
     ].filter(Boolean);
 
-    // Allow Flutter web (localhost) during development
     const isLocalhost = origin.startsWith('http://localhost:') ||
       origin.startsWith('http://127.0.0.1:');
 
     if (allowedOrigins.includes(origin) || isLocalhost) {
       callback(null, true);
     } else {
+      console.log('❌ CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
