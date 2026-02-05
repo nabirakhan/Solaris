@@ -1,4 +1,13 @@
 // File: backend/routes/auth.js
+
+const express = require('express');
+const router = express.Router();
+const jwt = require('jsonwebtoken');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const User = require('../models/User');
+const auth = require('../middleware/auth');
+
 // Add this after the imports, before other routes
 router.get('/', (req, res) => {
   res.json({
@@ -16,14 +25,6 @@ router.get('/', (req, res) => {
     }
   });
 });
-
-const express = require('express');
-const router = express.Router();
-const jwt = require('jsonwebtoken');
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const User = require('../models/User');
-const auth = require('../middleware/auth');
 
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,

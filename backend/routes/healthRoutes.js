@@ -1,4 +1,13 @@
 // File: backend/routes/healthRoutes.js
+
+const express = require('express');
+const router = express.Router();
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
 // Add this after imports, before other routes
 router.get('/', (req, res) => {
   res.json({
@@ -9,14 +18,6 @@ router.get('/', (req, res) => {
       delete_metrics: { method: 'DELETE', path: '/api/health/metrics', description: 'Delete health metrics', auth: true }
     }
   });
-});
-
-const express = require('express');
-const router = express.Router();
-const { Pool } = require('pg');
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
 });
 
 // Middleware to verify authentication (you should already have this)

@@ -1,4 +1,10 @@
 // File: backend/routes/cycles.js
+
+const express = require('express');
+const router = express.Router();
+const Cycle = require('../models/Cycle');
+const auth = require('../middleware/auth');
+
 // Add this after imports
 router.get('/', (req, res) => {
   res.json({
@@ -14,11 +20,6 @@ router.get('/', (req, res) => {
     }
   });
 });
-
-const express = require('express');
-const router = express.Router();
-const Cycle = require('../models/Cycle');
-const auth = require('../middleware/auth');
 
 router.post('/', auth, async (req, res) => {
   try {
