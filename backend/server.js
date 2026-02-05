@@ -72,8 +72,8 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/cycles', require('./routes/cycles'));
 app.use('/api/symptoms', require('./routes/symptoms'));
 app.use('/api/insights', require('./routes/insights'));
-const healthRoutes = require('./routes/healthRoutes');
-   app.use('/api/health', healthRoutes);
+app.use('/api/health', require('./routes/healthRoutes'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // ============================================================================
 // HEALTH & TEST ENDPOINTS
@@ -83,7 +83,15 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     message: 'Solaris API is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    features: [
+      'User Authentication',
+      'Cycle Tracking',
+      'Symptom Logging',
+      'AI Insights',
+      'Health Metrics',
+      'Notifications',
+    ]
   });
 });
 
@@ -129,7 +137,8 @@ const startServer = async () => {
     console.log('🌟 ========================================');
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🔗 http://localhost:${PORT}`);
-    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log('🤖 AI Service:', process.env.AI_SERVICE_URL || 'Not configured');
     console.log('🌟 ========================================\n');
   });
 

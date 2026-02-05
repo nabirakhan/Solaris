@@ -941,3 +941,5 @@ class AdvancedCyclePredictor:
             return 'Your cycles vary significantly - consider tracking symptoms to identify patterns'
         else:
             return 'Excellent tracking! Your data enables highly accurate predictions'
+        
+CyclePredictor = AdvancedCyclePredictor

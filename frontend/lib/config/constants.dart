@@ -1,4 +1,6 @@
 // File: lib/config/constants.dart
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class AppConstants {
@@ -6,14 +8,52 @@ class AppConstants {
   // API CONFIGURATION
   // ============================================================================
   
-  // IMPORTANT: Change this to your backend URL
-  // For local development with Android emulator: http://10.0.2.2:5000/api
-  // For local development with physical device: http://YOUR_LOCAL_IP:5000/api
-  // For production: your deployed backend URL
-  static const String apiBaseUrl = 'http://10.0.2.2:5000/api';
+  // Automatically detect the correct API URL based on platform
+  static String get apiBaseUrl {
+    if (kIsWeb) {
+      // For web builds
+      return 'http://localhost:5000/api';
+    } else if (Platform.isAndroid) {
+      // For Android emulator - 10.0.2.2 maps to host machine's localhost
+      return 'http://10.0.2.2:5000/api';
+    } else if (Platform.isIOS) {
+      // For iOS simulator
+      return 'http://localhost:5000/api';
+    } else {
+      // Fallback
+      return 'http://localhost:5000/api';
+    }
+  }
+  
+  // For testing with physical devices, uncomment and update with your computer's local IP:
+  // Find your IP by running:
+  // - Windows: ipconfig (look for IPv4 Address)
+  // - Mac/Linux: ifconfig or ip addr (look for inet)
+  // static const String apiBaseUrl = 'http://192.168.1.100:5000/api';
   
   // AI Service URL
-  static const String aiServiceUrl = 'http://10.0.2.2:5001';
+  static String get aiServiceUrl {
+    if (kIsWeb) {
+      return 'http://localhost:5001';
+    } else if (Platform.isAndroid) {
+      return 'http://10.0.2.2:5001';
+    } else if (Platform.isIOS) {
+      return 'http://localhost:5001';
+    } else {
+      return 'http://localhost:5001';
+    }
+  }
+
+  // Debug helper - call this in your main.dart
+  static void printApiInfo() {
+    debugPrint('🌐 ========================================');
+    debugPrint('🌐 API Configuration');
+    debugPrint('🌐 ========================================');
+    debugPrint('📍 Base URL: $apiBaseUrl');
+    debugPrint('🤖 AI Service: $aiServiceUrl');
+    debugPrint('📱 Platform: ${kIsWeb ? 'Web' : Platform.operatingSystem}');
+    debugPrint('🌐 ========================================');
+  }
 
   // ============================================================================
   // APP INFORMATION

@@ -4,10 +4,12 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:math' as math;
 import '../providers/cycle_provider.dart';
+import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/panda_mascot.dart';
 import '../widgets/animated_background.dart';
+import '../widgets/ai_insights_card.dart';
 
 class TodayScreen extends StatefulWidget {
   @override
@@ -21,6 +23,7 @@ class _TodayScreenState extends State<TodayScreen>
   final PageController _recommendationsController =
       PageController(viewportFraction: 0.85);
   int _currentRecommendationPage = 0;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -45,6 +48,11 @@ class _TodayScreenState extends State<TodayScreen>
         setState(() => _currentRecommendationPage = page);
       }
     });
+
+    // Load data on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   @override
@@ -54,8 +62,46 @@ class _TodayScreenState extends State<TodayScreen>
     super.dispose();
   }
 
+  Future<void> _loadData() async {
+    final cycleProvider = Provider.of<CycleProvider>(context, listen: false);
+    await cycleProvider.loadCycles();
+    await cycleProvider.loadCurrentInsights();
+  }
+
+  Future<void> _refreshInsights() async {
+    setState(() => _isRefreshing = true);
+    
+    final cycleProvider = Provider.of<CycleProvider>(context, listen: false);
+    final success = await cycleProvider.requestAIAnalysis();
+    
+    setState(() => _isRefreshing = false);
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('AI insights updated successfully! ✨'),
+          backgroundColor: AppTheme.successColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(cycleProvider.error ?? 'Failed to update insights'),
+          backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.user;
+
     return Scaffold(
       backgroundColor: AppTheme.almostWhite,
       body: AnimatedGradientBackground(
@@ -67,92 +113,121 @@ class _TodayScreenState extends State<TodayScreen>
           AppTheme.almostWhite,
         ],
         child: SafeArea(
-          child: CustomScrollView(
-            physics: BouncingScrollPhysics(),
-            slivers: [
-              SliverAppBar(
-                expandedHeight: 120,
-                floating: false,
-                pinned: true,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          AppTheme.primaryPink.withOpacity(0.05),
-                          Colors.transparent,
+          child: RefreshIndicator(
+            onRefresh: _loadData,
+            color: AppTheme.primaryPink,
+            child: CustomScrollView(
+              physics: BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              slivers: [
+                SliverAppBar(
+                  expandedHeight: 120,
+                  floating: false,
+                  pinned: true,
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            AppTheme.primaryPink.withOpacity(0.05),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                      padding: EdgeInsets.fromLTRB(24, 0, 24, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            _getGreeting(),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.textGray,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            user != null ? 'Hi, ${user['name']}!' : 'Today\'s Overview',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    padding: EdgeInsets.fromLTRB(24, 0, 24, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          _getGreeting(),
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.textGray,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Today\'s Overview',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textDark,
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
-              ),
 
-              SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    SizedBox(height: 20),
+                SliverToBoxAdapter(
+                  child: Column(
+                    children: [
+                      SizedBox(height: 20),
 
-                    _buildPhaseCard()
-                        .animate()
-                        .fadeIn(duration: 600.ms, delay: 200.ms)
-                        .slideY(begin: 0.3, end: 0, curve: Curves.easeOutCubic)
-                        .shimmer(duration: 1500.ms, delay: 400.ms),
+                      _buildPhaseCard()
+                          .animate()
+                          .fadeIn(duration: 600.ms, delay: 200.ms)
+                          .slideY(begin: 0.3, end: 0, curve: Curves.easeOutCubic)
+                          .shimmer(duration: 1500.ms, delay: 400.ms),
 
-                    SizedBox(height: 24),
+                      SizedBox(height: 24),
 
-                    _buildPandaSection()
-                        .animate()
-                        .fadeIn(duration: 600.ms, delay: 400.ms)
-                        .scale(begin: Offset(0.8, 0.8), curve: Curves.elasticOut),
+                      // AI Insights Card
+                      _buildAIInsightsSection()
+                          .animate()
+                          .fadeIn(duration: 600.ms, delay: 300.ms)
+                          .slideY(begin: 0.3, end: 0, curve: Curves.easeOutCubic),
 
-                    SizedBox(height: 24),
+                      SizedBox(height: 24),
 
-                    _buildStatsGrid()
-                        .animate()
-                        .fadeIn(duration: 600.ms, delay: 600.ms)
-                        .slideX(begin: -0.2, curve: Curves.easeOutCubic),
+                      _buildPandaSection()
+                          .animate()
+                          .fadeIn(duration: 600.ms, delay: 400.ms)
+                          .scale(begin: Offset(0.8, 0.8), curve: Curves.elasticOut),
 
-                    SizedBox(height: 32),
+                      SizedBox(height: 24),
 
-                    _buildRecommendationsCarousel(),
+                      _buildStatsGrid()
+                          .animate()
+                          .fadeIn(duration: 600.ms, delay: 600.ms)
+                          .slideX(begin: -0.2, curve: Curves.easeOutCubic),
 
-                    SizedBox(height: 100),
-                  ],
+                      SizedBox(height: 32),
+
+                      _buildRecommendationsCarousel(),
+
+                      SizedBox(height: 100),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAIInsightsSection() {
+    return Consumer<CycleProvider>(
+      builder: (context, provider, child) {
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: AIInsightsCard(
+            insights: provider.currentInsights,
+            onRefresh: _refreshInsights,
+            isLoading: _isRefreshing,
+          ),
+        );
+      },
     );
   }
 
@@ -456,7 +531,7 @@ class _TodayScreenState extends State<TodayScreen>
       padding: EdgeInsets.symmetric(horizontal: 12),
       child: GlassCard(
         margin: EdgeInsets.zero,
-        padding: EdgeInsets.all(20),
+        padding: EdgeInsets.all(16),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -470,40 +545,43 @@ class _TodayScreenState extends State<TodayScreen>
             borderRadius: BorderRadius.circular(24),
           ),
           child: Padding(
-            padding: EdgeInsets.all(20),
+            padding: EdgeInsets.all(16),
             child: Row(
               children: [
                 Container(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, color: color, size: 36),
+                  child: Icon(icon, color: color, size: 32),
                 ),
-                SizedBox(width: 20),
+                SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.textDark,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      SizedBox(height: 8),
+                      SizedBox(height: 6),
                       Text(
                         description,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 13,
                           color: AppTheme.textGray,
-                          height: 1.5,
+                          height: 1.4,
                         ),
-                        maxLines: 3,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],

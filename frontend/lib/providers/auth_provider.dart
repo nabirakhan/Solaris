@@ -144,11 +144,10 @@ class AuthProvider with ChangeNotifier {
     try {
       final result = await _apiService.uploadProfilePicture(imageFile);
       
-      if (result['user'] != null) {
+      if (result != null && result['user'] != null) {
         _user = result['user'];
         notifyListeners();
       }
-      
       return result;
     } catch (e) {
       print('Error uploading profile picture: $e');

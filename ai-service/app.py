@@ -7,12 +7,10 @@ import traceback
 import logging
 from functools import wraps
 from datetime import datetime
-
-# Import enhanced models
-from models.cycle_predictor_advanced import AdvancedCyclePredictor
-from models.symptom_analyzer_advanced import AdvancedSymptomAnalyzer
-from models.health_tracker_advanced import AdvancedHealthTracker
-from models.recommender_advanced import AdvancedRecommenderSystem
+from models.cycle_predictor import AdvancedCyclePredictor
+from models.symptom_analyzer import AdvancedSymptomAnalyzer
+from models.health_tracker import AdvancedHealthTracker
+from models.recommender import AdvancedRecommenderSystem
 
 load_dotenv()
 

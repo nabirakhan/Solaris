@@ -60,8 +60,8 @@ dependencies:
   url_launcher: ^6.2.4
   image_picker: ^1.0.7
   cached_network_image: ^3.3.0
-  flutter_local_notifications: ^16.3.0
-  timezone: ^0.9.3
+  flutter_local_notifications: ^20.0.0
+  timezone: ^0.10.1
 
 dev_dependencies:
   flutter_test:

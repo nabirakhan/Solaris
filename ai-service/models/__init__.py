@@ -1,8 +1,8 @@
 # File: ai-service/models/__init__.py
-from .cycle_predictor import CyclePredictor
-from .symptom_analyzer import SymptomAnalyzer
-from .recommender import RecommenderSystem
-from .health_tracker import HealthTracker
+from .cycle_predictor import AdvancedCyclePredictor
+from .symptom_analyzer import AdvancedSymptomAnalyzer
+from .recommender import AdvancedRecommenderSystem
+from .health_tracker import AdvancedHealthTracker
 
 __all__ = [
     'CyclePredictor',
@@ -10,3 +10,4 @@ __all__ = [
     'RecommenderSystem',
     'HealthTracker'
 ]
+

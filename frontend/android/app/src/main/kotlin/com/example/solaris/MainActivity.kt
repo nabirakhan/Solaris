@@ -1,4 +1,4 @@
-package com.example.period_tracker
+package com.example.solaris
 
 import io.flutter.embedding.android.FlutterActivity
 
