@@ -43,6 +43,18 @@ const testDatabaseConnection = async () => {
 };
 
 // ============================================================================
+// TEST ROUTE (ADD THIS FIRST!)
+// ============================================================================
+
+app.get('/test-simple', (req, res) => {
+  res.json({ 
+    message: 'Simple test route works!',
+    timestamp: new Date().toISOString(),
+    port: process.env.PORT
+  });
+});
+
+// ============================================================================
 // BASIC ENDPOINTS (MUST COME BEFORE API ROUTES)
 // ============================================================================
 
