@@ -7,35 +7,13 @@ const { pool } = require('./config/database');
 
 const app = express();
 
-
 // ============================================================================
 // MIDDLEWARE
 // ============================================================================
 
-// Update your CORS config (around line 23)
+// ✅ Simplified CORS for mobile app
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'http://192.168.100.9:3000',
-      process.env.FRONTEND_URL,
-      // ✅ Add your Render frontend URL here
-      'https://your-frontend-app.onrender.com' // Replace with your actual frontend URL
-    ].filter(Boolean);
-
-    const isLocalhost = origin.startsWith('http://localhost:') ||
-      origin.startsWith('http://127.0.0.1:');
-
-    if (allowedOrigins.includes(origin) || isLocalhost) {
-      callback(null, true);
-    } else {
-      console.log('❌ CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: '*', // Allow all origins (safe for mobile apps)
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -104,11 +82,7 @@ app.get('/', (req, res) => {
     environment: process.env.NODE_ENV || 'production',
     server_time: new Date().toISOString(),
     base_url: process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 5000}`,
-    documentation: {
-      health: '/health',
-      api_docs: '/api-docs (if available)',
-      test_endpoint: '/api/test'
-    },
+    api_base: '/api/*',
     available_endpoints: {
       auth: '/api/auth',
       cycles: '/api/cycles',
@@ -117,12 +91,7 @@ app.get('/', (req, res) => {
       health_api: '/api/health',
       notifications: '/api/notifications'
     },
-    services: {
-      ai: process.env.AI_SERVICE_URL || 'https://solaris-ai-service.onrender.com',
-      database: 'PostgreSQL'
-    },
-    repository: 'https://github.com/nabirakhan/Solaris',
-    note: 'Frontend should connect to ' + (process.env.FRONTEND_URL || 'http://localhost:3000')
+    note: 'Backend API for mobile applications. Connect your Flutter/React Native app to this URL.'
   });
 });
 
@@ -207,6 +176,5 @@ if (require.main === module) {
     process.exit(1);
   });
 }
-
 
 module.exports = { app, startServer };
