@@ -4,56 +4,49 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class AppConstants {
-  // ============================================================================
-  // API CONFIGURATION
-  // ============================================================================
-  
-  // Automatically detect the correct API URL based on platform
-  static String get apiBaseUrl {
-    if (kIsWeb) {
-      // For web builds
-      return 'http://localhost:5000/api';
-    } else if (Platform.isAndroid) {
-      // For Android emulator - 10.0.2.2 maps to host machine's localhost
-      return 'http://10.0.2.2:5000/api';
-    } else if (Platform.isIOS) {
-      // For iOS simulator
-      return 'http://localhost:5000/api';
-    } else {
-      // Fallback
-      return 'http://localhost:5000/api';
-    }
-  }
-  
-  // For testing with physical devices, uncomment and update with your computer's local IP:
-  // Find your IP by running:
-  // - Windows: ipconfig (look for IPv4 Address)
-  // - Mac/Linux: ifconfig or ip addr (look for inet)
-  // static const String apiBaseUrl = 'http://192.168.1.100:5000/api';
-  
-  // AI Service URL
-  static String get aiServiceUrl {
-    if (kIsWeb) {
-      return 'http://localhost:5001';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:5001';
-    } else if (Platform.isIOS) {
-      return 'http://localhost:5001';
-    } else {
-      return 'http://localhost:5001';
-    }
-  }
+// ============================================================================
+// API CONFIGURATION
+// ============================================================================
 
-  // Debug helper - call this in your main.dart
-  static void printApiInfo() {
-    debugPrint('🌐 ========================================');
-    debugPrint('🌐 API Configuration');
-    debugPrint('🌐 ========================================');
-    debugPrint('📍 Base URL: $apiBaseUrl');
-    debugPrint('🤖 AI Service: $aiServiceUrl');
-    debugPrint('📱 Platform: ${kIsWeb ? 'Web' : Platform.operatingSystem}');
-    debugPrint('🌐 ========================================');
-  }
+// Production API URL
+static String get apiBaseUrl {
+  return 'https://solaris-vhc8.onrender.com/api';
+}
+
+// Production AI Service URL
+static String get aiServiceUrl {
+  return 'https://solaris-ai-service.onrender.com';
+}
+
+// Optional: Add environment-based configuration
+// static String get apiBaseUrl {
+//   const bool isProduction = bool.fromEnvironment('PRODUCTION');
+//   if (isProduction) {
+//     return 'https://solaris-vhc8.onrender.com/api';
+//   } else {
+//     // For local development
+//     if (kIsWeb) {
+//       return 'http://localhost:5000/api';
+//     } else if (Platform.isAndroid) {
+//       return 'http://10.0.2.2:5000/api';
+//     } else if (Platform.isIOS) {
+//       return 'http://localhost:5000/api';
+//     } else {
+//       return 'http://localhost:5000/api';
+//     }
+//   }
+// }
+
+// Debug helper - call this in your main.dart
+static void printApiInfo() {
+  debugPrint('🌐 ========================================');
+  debugPrint('🌐 API Configuration');
+  debugPrint('🌐 ========================================');
+  debugPrint('📍 Base URL: $apiBaseUrl');
+  debugPrint('🤖 AI Service: $aiServiceUrl');
+  debugPrint('📱 Platform: ${kIsWeb ? 'Web' : Platform.operatingSystem}');
+  debugPrint('🌐 ========================================');
+}
 
   // ============================================================================
   // APP INFORMATION
