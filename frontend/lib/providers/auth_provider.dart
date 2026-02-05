@@ -109,29 +109,45 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
     
     try {
+      print('🔄 AuthProvider: Starting Google Sign-In...');
+      
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       
       if (googleUser == null) {
+        _errorMessage = 'Sign-in cancelled by user';
         _isLoading = false;
         notifyListeners();
         return false;
       }
       
+      print('✅ AuthProvider: Got Google user: ${googleUser.email}');
+      
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       
+      print('✅ AuthProvider: Got Google auth tokens');
+      print('🔑 ID Token present: ${googleAuth.idToken != null}');
+      print('🔑 Access Token present: ${googleAuth.accessToken != null}');
+      
+      // IMPORTANT: Pass the idToken to ApiService
       final response = await _apiService.googleSignIn(
         email: googleUser.email,
         name: googleUser.displayName ?? 'User',
         photoUrl: googleUser.photoUrl,
         googleId: googleUser.id,
+        idToken: googleAuth.idToken ?? '', // ADD THIS - CRITICAL!
+        accessToken: googleAuth.accessToken,
       );
       
       _user = response['user'];
       _isAuthenticated = true;
       _isLoading = false;
       notifyListeners();
+      
+      print('✅ AuthProvider: Google Sign-In successful!');
       return true;
+      
     } catch (e) {
+      print('❌ AuthProvider Google Sign-In error: $e');
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();

@@ -89,12 +89,21 @@ class ApiService {
     }
   }
   
+ // Replace your current googleSignIn() method with this:
   Future<Map<String, dynamic>> googleSignIn({
     required String email,
     required String name,
     String? photoUrl,
     required String googleId,
+    required String idToken,      // ADD THIS - CRITICAL!
+    String? accessToken,          // Optional but recommended
   }) async {
+    print('🔍 [API DEBUG] Sending Google sign-in to backend...');
+    print('📧 Email: $email');
+    print('👤 Name: $name');
+    print('🆔 Google ID: $googleId');
+    print('🔑 ID Token present: ${idToken != null}');
+    
     final response = await http.post(
       Uri.parse('${AppConstants.apiBaseUrl}/auth/google/mobile'),
       headers: {'Content-Type': 'application/json'},
@@ -103,8 +112,13 @@ class ApiService {
         'name': name,
         'photoUrl': photoUrl,
         'googleId': googleId,
+        'idToken': idToken,      // ADD THIS LINE - BACKEND NEEDS IT!
+        'accessToken': accessToken,
       }),
     );
+    
+    print('🔍 [API DEBUG] Backend response: ${response.statusCode}');
+    print('🔍 [API DEBUG] Backend body: ${response.body}');
     
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
