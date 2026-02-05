@@ -11,6 +11,7 @@ from models.cycle_predictor import AdvancedCyclePredictor
 from models.symptom_analyzer import AdvancedSymptomAnalyzer
 from models.health_tracker import AdvancedHealthTracker
 from models.recommender import AdvancedRecommenderSystem
+import numpy as np
 
 load_dotenv()
 
@@ -178,7 +179,24 @@ def comprehensive_analysis():
         }
     }
     
-    return jsonify(result)
+    import json
+    class NumpyEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, np.bool_):
+                return bool(obj)
+            return super(NumpyEncoder, self).default(obj)
+
+    return app.response_class(
+        response=json.dumps(result, cls=NumpyEncoder),
+        status=200,
+        mimetype='application/json'
+    )
 
 @app.route('/symptom-prediction', methods=['POST'])
 @handle_errors

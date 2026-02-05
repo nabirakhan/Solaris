@@ -4,7 +4,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../providers/health_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/glass_card.dart';
-import '../../widgets/metric_card.dart';
 
 class HealthMetricsScreen extends StatefulWidget {
   @override

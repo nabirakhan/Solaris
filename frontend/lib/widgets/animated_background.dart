@@ -1,6 +1,5 @@
 // File: lib/widgets/animated_background.dart
 import 'package:flutter/material.dart';
-import '../config/constants.dart';
 
 class AnimatedGradientBackground extends StatefulWidget {
   final Widget child;

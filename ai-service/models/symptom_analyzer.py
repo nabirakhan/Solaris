@@ -591,7 +591,7 @@ class AdvancedSymptomAnalyzer:
             worst_phase = phase_correlations['worstPhase']
             recommendations.append({
                 'type': 'phase_management',
-                'title': f'Focus on {worst_phase.title()} Phase',
+                'title': f'Focus on {worst_phase.title() if worst_phase else "Your"} Phase',
                 'description': f'Your symptoms peak during {worst_phase} phase. Plan self-care activities accordingly.',
                 'priority': 'high',
                 'phase': worst_phase
