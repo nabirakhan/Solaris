@@ -5,7 +5,8 @@ services:
     runtime: python
     region: oregon
     branch: main
-    rootDirectory: /  # This file is already in ai-service folder
+    pythonVersion: "3.11.0"  # <-- ADD THIS LINE
+    rootDirectory: /
     
     # Build command
     buildCommand: |
@@ -18,7 +19,7 @@ services:
     # Health check
     healthCheckPath: /health
     
-    # Environment variables
+    # Environment variables (keep these too)
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
