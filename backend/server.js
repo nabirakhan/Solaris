@@ -43,18 +43,7 @@ const testDatabaseConnection = async () => {
 };
 
 // ============================================================================
-// ROUTES
-// ============================================================================
-
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/cycles', require('./routes/cycles'));
-app.use('/api/symptoms', require('./routes/symptoms'));
-app.use('/api/insights', require('./routes/insights'));
-app.use('/api/health', require('./routes/healthRoutes'));
-app.use('/api/notifications', require('./routes/notifications'));
-
-// ============================================================================
-// HEALTH & TEST ENDPOINTS
+// BASIC ENDPOINTS (MUST COME BEFORE API ROUTES)
 // ============================================================================
 
 app.get('/health', (req, res) => {
@@ -100,14 +89,43 @@ app.get('/api/test', (req, res) => {
 });
 
 // ============================================================================
-// ERROR HANDLING
+// API ROUTES (COMES AFTER BASIC ENDPOINTS)
 // ============================================================================
 
-// 404 handler
-app.use((req, res) => {
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/cycles', require('./routes/cycles'));
+app.use('/api/symptoms', require('./routes/symptoms'));
+app.use('/api/insights', require('./routes/insights'));
+app.use('/api/health', require('./routes/healthRoutes'));
+app.use('/api/notifications', require('./routes/notifications'));
+
+// ============================================================================
+// ERROR HANDLING (MUST COME LAST)
+// ============================================================================
+
+// 404 handler - for undefined routes
+app.use('*', (req, res) => {
   res.status(404).json({
-    error: 'Not found',
-    message: `Cannot ${req.method} ${req.path}`
+    error: 'Endpoint not found',
+    requested: `${req.method} ${req.originalUrl}`,
+    suggestion: 'Visit / for available endpoints',
+    available_endpoints: [
+      'GET /',
+      'GET /health',
+      'GET /api/test',
+      'POST /api/auth/signup',
+      'POST /api/auth/login',
+      'GET /api/auth/me',
+      'GET /api/cycles',
+      'POST /api/cycles',
+      'GET /api/symptoms',
+      'POST /api/symptoms',
+      'GET /api/insights/current',
+      'GET /api/health/metrics',
+      'POST /api/health/metrics',
+      'GET /api/notifications/settings',
+      'POST /api/notifications/settings'
+    ]
   });
 });
 

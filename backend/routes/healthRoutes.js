@@ -1,4 +1,16 @@
 // File: backend/routes/healthRoutes.js
+// Add this after imports, before other routes
+router.get('/', (req, res) => {
+  res.json({
+    service: 'Health Metrics API',
+    endpoints: {
+      get_metrics: { method: 'GET', path: '/api/health/metrics', description: 'Get health metrics', auth: true },
+      save_metrics: { method: 'POST', path: '/api/health/metrics', description: 'Save/update health metrics', auth: true },
+      delete_metrics: { method: 'DELETE', path: '/api/health/metrics', description: 'Delete health metrics', auth: true }
+    }
+  });
+});
+
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');

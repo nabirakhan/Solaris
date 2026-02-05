@@ -1,4 +1,20 @@
 // File: backend/routes/cycles.js
+// Add this after imports
+router.get('/', (req, res) => {
+  res.json({
+    service: 'Cycle Tracking API',
+    endpoints: {
+      list_cycles: { method: 'GET', path: '/api/cycles', description: 'Get all cycles', auth: true },
+      create_cycle: { method: 'POST', path: '/api/cycles', description: 'Create new cycle', auth: true },
+      get_cycle: { method: 'GET', path: '/api/cycles/:id', description: 'Get specific cycle', auth: true },
+      update_cycle: { method: 'PUT', path: '/api/cycles/:id', description: 'Update cycle', auth: true },
+      delete_cycle: { method: 'DELETE', path: '/api/cycles/:id', description: 'Delete cycle', auth: true },
+      current_cycle: { method: 'GET', path: '/api/cycles/latest/current', description: 'Get current/latest cycle', auth: true },
+      average_stats: { method: 'GET', path: '/api/cycles/stats/average', description: 'Get cycle statistics', auth: true }
+    }
+  });
+});
+
 const express = require('express');
 const router = express.Router();
 const Cycle = require('../models/Cycle');

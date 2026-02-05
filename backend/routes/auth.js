@@ -1,4 +1,22 @@
 // File: backend/routes/auth.js
+// Add this after the imports, before other routes
+router.get('/', (req, res) => {
+  res.json({
+    service: 'Authentication API',
+    endpoints: {
+      signup: { method: 'POST', path: '/api/auth/signup', description: 'Create new account with email/password' },
+      login: { method: 'POST', path: '/api/auth/login', description: 'Login with email/password' },
+      google: { method: 'GET', path: '/api/auth/google', description: 'Start Google OAuth flow' },
+      google_callback: { method: 'GET', path: '/api/auth/google/callback', description: 'Google OAuth callback' },
+      google_mobile: { method: 'POST', path: '/api/auth/google/mobile', description: 'Mobile Google authentication' },
+      me: { method: 'GET', path: '/api/auth/me', description: 'Get current user profile', auth: true },
+      profile: { method: 'PUT', path: '/api/auth/profile', description: 'Update user profile', auth: true },
+      stats: { method: 'GET', path: '/api/auth/stats', description: 'Get user statistics', auth: true },
+      logout: { method: 'POST', path: '/api/auth/logout', description: 'Logout user', auth: true }
+    }
+  });
+});
+
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
