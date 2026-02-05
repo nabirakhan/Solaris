@@ -1,0 +1,31 @@
+# Solaris/ai-service/render.yaml
+services:
+  - type: web
+    name: solaris-ai-service
+    runtime: python
+    region: oregon
+    branch: main
+    rootDirectory: /  # This file is already in ai-service folder
+    
+    # Build command
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    
+    # Start command
+    startCommand: gunicorn app:app --workers=2 --timeout=120 --bind=0.0.0.0:$PORT
+    
+    # Health check
+    healthCheckPath: /health
+    
+    # Environment variables
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: FLASK_ENV
+        value: production
+      - key: CORS_ORIGINS
+        value: https://solaris-vhc8.onrender.com
+    
+    autoDeploy: true
+    plan: free
