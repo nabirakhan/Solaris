@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/constants.dart';
-import 'dart:math' as math;
 
 class ApiService {
   static const String _tokenKey = 'auth_token';
@@ -165,49 +164,16 @@ class ApiService {
   // ============================================================================
   
   Future<List<dynamic>> getCycles() async {
-    try {
-      print('🔍 [API DEBUG] ========================================');
-      print('🔍 [API DEBUG] 1. Starting getCycles()');
-      
-      final headers = await _getHeaders();
-      final token = await getToken();
-      
-      print('🔍 [API DEBUG] 2. Token exists: ${token != null}');
-      if (token != null) {
-        print('🔍 [API DEBUG]    Token first 10 chars: ${token.substring(0, math.min(10, token.length))}...');
-      }
-      
-      print('🔍 [API DEBUG] 3. Headers: $headers');
-      print('🔍 [API DEBUG] 4. Calling: ${AppConstants.apiBaseUrl}/cycles');
-      
-      final response = await http.get(
-        Uri.parse('${AppConstants.apiBaseUrl}/cycles'),
-        headers: headers,
-      );
-      
-      print('🔍 [API DEBUG] 5. Response Status: ${response.statusCode}');
-      print('🔍 [API DEBUG] 6. Response Body: ${response.body}');
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final cycles = data['cycles'] ?? [];
-        print('🔍 [API DEBUG] 7. Found ${cycles.length} cycles');
-        if (cycles.isNotEmpty) {
-          for (var i = 0; i < cycles.length; i++) {
-            print('🔍 [API DEBUG]    Cycle $i: ${cycles[i]}');
-          }
-        }
-        return cycles;
-      } else if (response.statusCode == 401) {
-        print('🔍 [API DEBUG] 8. AUTH ERROR: Token invalid or expired');
-        throw Exception('Authentication failed. Please login again.');
-      } else {
-        print('🔍 [API DEBUG] 9. API ERROR: ${response.statusCode}');
-        throw Exception('Failed to load cycles: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('🔍 [API DEBUG] 10. EXCEPTION: $e');
-      rethrow;
+    final response = await http.get(
+      Uri.parse('${AppConstants.apiBaseUrl}/cycles'),
+      headers: await _getHeaders(),
+    );
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['cycles'] ?? [];
+    } else {
+      throw Exception('Failed to load cycles');
     }
   }
   
