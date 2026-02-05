@@ -5,28 +5,33 @@ services:
     runtime: python
     region: oregon
     branch: main
-    pythonVersion: "3.11.0"  # <-- ADD THIS LINE
+    python: "3.11.0"  # This forces Render to use Python 3.11.0
     rootDirectory: /
     
     # Build command
     buildCommand: |
       pip install --upgrade pip
-      pip install -r requirements.txt
+      pip install --no-cache-dir -r requirements.txt
     
-    # Start command
-    startCommand: gunicorn app:app --workers=2 --timeout=120 --bind=0.0.0.0:$PORT
+    # Start command - optimized for free tier
+    startCommand: gunicorn app:app --workers=1 --timeout=180 --bind=0.0.0.0:$PORT
     
     # Health check
     healthCheckPath: /health
+    healthCheckTimeout: 30
     
-    # Environment variables (keep these too)
+    # Environment variables
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
       - key: FLASK_ENV
         value: production
+      - key: FLASK_DEBUG
+        value: "false"
       - key: CORS_ORIGINS
         value: https://solaris-vhc8.onrender.com
+      - key: LOG_LEVEL
+        value: INFO
+      - key: TIMEOUT
+        value: "180"
     
     autoDeploy: true
     plan: free
