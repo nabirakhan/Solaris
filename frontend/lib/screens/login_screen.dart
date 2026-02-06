@@ -162,8 +162,8 @@ class _LoginScreenState extends State<LoginScreen>
     return Hero(
       tag: 'app_logo',
       child: Container(
-        width: 140,
-        height: 140,
+        width: 120,
+        height: 120,
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
@@ -232,7 +232,7 @@ class _LoginScreenState extends State<LoginScreen>
       }
 
       return Padding(
-        padding: const EdgeInsets.all(15),
+        padding: const EdgeInsets.all(5),
         child: ClipOval(
           child: Image(
             image: image,
