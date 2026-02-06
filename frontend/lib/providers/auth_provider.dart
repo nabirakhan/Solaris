@@ -155,19 +155,48 @@ class AuthProvider with ChangeNotifier {
     }
   }
   
-  // In auth_provider.dart, keep the original:
+  // ✅ FIX #2: Fixed profile picture upload with proper state update
   Future<Map<String, dynamic>?> uploadProfilePicture(File imageFile) async {
     try {
+      print('📸 Starting profile picture upload...');
       final result = await _apiService.uploadProfilePicture(imageFile);
       
+      print('📸 Upload result: $result');
+      
+      // ✅ FIX #2: Update user state immediately and notify listeners
       if (result != null && result['user'] != null) {
-        _user = result['user'];
-        notifyListeners();
+        // Create a new map to ensure the UI updates
+        _user = Map<String, dynamic>.from(result['user']);
+        print('📸 Updated user photoUrl: ${_user?['photoUrl']}');
+        notifyListeners(); // This triggers UI rebuild
+      } else if (result != null && result['photoUrl'] != null) {
+        // Alternative: if only photoUrl is returned, update it directly
+        if (_user != null) {
+          _user = Map<String, dynamic>.from(_user!);
+          _user!['photoUrl'] = result['photoUrl'];
+          print('📸 Updated photoUrl directly: ${result['photoUrl']}');
+          notifyListeners();
+        }
       }
+      
       return result;
     } catch (e) {
-      print('Error uploading profile picture: $e');
+      print('❌ Error uploading profile picture: $e');
       return null;
+    }
+  }
+  
+  // ✅ FIX #2: Method to manually update user data (can be called after upload)
+  Future<void> refreshUserData() async {
+    try {
+      final response = await _apiService.getCurrentUser();
+      if (response['user'] != null) {
+        _user = Map<String, dynamic>.from(response['user']);
+        notifyListeners();
+        print('✅ User data refreshed successfully');
+      }
+    } catch (e) {
+      print('❌ Error refreshing user data: $e');
     }
   }
   

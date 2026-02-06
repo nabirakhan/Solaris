@@ -149,30 +149,53 @@ class ApiService {
   
   Future<Map<String, dynamic>?> uploadProfilePicture(File imageFile) async {
     try {
+      print('📸 Upload starting...');
+      print('📸 File path: ${imageFile.path}');
+      print('📸 File exists: ${await imageFile.exists()}');
+      
       final headers = await _getHeaders();
-      headers.remove('Content-Type');
+      print('📸 Auth headers obtained');
+      headers.remove('Content-Type'); // Let multipart set this
       
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('${AppConstants.apiBaseUrl}/auth/profile/picture'),
       );
       
+      print('📸 Request URL: ${AppConstants.apiBaseUrl}/auth/profile/picture');
+      
       request.headers.addAll(headers);
-      request.files.add(await http.MultipartFile.fromPath('picture', imageFile.path));
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'picture',
+          imageFile.path,
+          filename: 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg', // ✅ Added filename
+        ),
+      );
       
+      print('📸 Sending request...');
       final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      print('📸 Response status code: ${streamedResponse.statusCode}');
       
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+      final response = await http.Response.fromStream(streamedResponse);
+      print('📸 Response body: ${response.body}');
+      
+      // ✅ Check for both 200 and 201 status codes
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        print('✅ Upload successful! Data: $data');
+        return data;
+      } else {
+        print('❌ Upload failed with status: ${response.statusCode}');
+        print('❌ Response: ${response.body}');
+        return null;
       }
-      return null;
-    } catch (e) {
-      print('Upload error: $e');
+    } catch (e, stackTrace) {
+      print('❌ Upload error: $e');
+      print('❌ Stack trace: $stackTrace'); // ✅ Added stack trace
       return null;
     }
   }
-  
   // ============================================================================
   // CYCLES
   // ============================================================================

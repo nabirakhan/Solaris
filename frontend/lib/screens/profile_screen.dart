@@ -180,15 +180,51 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 padding: EdgeInsets.all(16),
                 child: Column(
                   children: [
+                    // ✅ FIX #2: Use key to force widget rebuild when photoUrl changes
                     ProfilePicturePicker(
+                      key: ValueKey(user?['photoUrl'] ?? 'no-photo'),
                       currentImageUrl: user?['photoUrl'],
                       onImageSelected: (File imageFile) async {
+                        print('📸 Profile picture selected');
+                        
+                        // Show loading indicator
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryPink),
+                            ),
+                          ),
+                        );
+                        
                         final result = await auth.uploadProfilePicture(imageFile);
+                        
+                        // Close loading dialog
+                        if (mounted) Navigator.of(context).pop();
+                        
                         if (result != null && mounted) {
+                          print('✅ Profile picture uploaded successfully');
+                          
+                          // ✅ FIX #2: Refresh user data to ensure we have the latest photoUrl
+                          await auth.refreshUserData();
+                          
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Profile picture updated!'),
+                              content: Text('Profile picture updated! ✨'),
                               backgroundColor: AppTheme.successColor,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          );
+                        } else if (mounted) {
+                          print('❌ Profile picture upload failed');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to update profile picture'),
+                              backgroundColor: AppTheme.errorColor,
                               behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -257,19 +293,25 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   Text(
                     'Add Health Metrics',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textDark,
                     ),
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'Track your BMI, weight, and more',
+                    'Track your health to get better insights',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       color: AppTheme.textGray,
                     ),
                     textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16),
+                  Icon(
+                    Icons.add_circle,
+                    color: AppTheme.primaryPink,
+                    size: 32,
                   ),
                 ],
               ),
@@ -279,9 +321,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         
         final bmi = _calculateBMI(metrics);
         final age = _calculateAge(metrics['birthdate']);
-        final height = _formatHeight(metrics);
-        final weight = metrics['weight'];
-        final useMetric = metrics['useMetric'] ?? true;
         
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: 20),
@@ -292,44 +331,24 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Health Stats',
+                    'Health Overview',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textDark,
                     ),
                   ),
-                  TextButton(
+                  TextButton.icon(
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => HealthMetricsScreen()),
                       );
                     },
-                    child: Text('Edit'),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      'BMI',
-                      bmi != null ? bmi.toStringAsFixed(1) : 'N/A',
-                      Icons.favorite,
-                      _getBMIColor(bmi),
-                      0,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard(
-                      'Age',
-                      age != null ? '$age yrs' : 'N/A',
-                      Icons.cake,
-                      AppTheme.primaryPurple,
-                      100,
+                    icon: Icon(Icons.edit, size: 16),
+                    label: Text('Edit'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.primaryPink,
                     ),
                   ),
                 ],
@@ -338,24 +357,34 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               Row(
                 children: [
                   Expanded(
-                    child: _buildStatCard(
+                    child: _buildHealthStatCard(
+                      _formatHeight(metrics),
                       'Height',
-                      height,
                       Icons.height,
                       AppTheme.follicularPhase,
-                      200,
+                      0,
                     ),
                   ),
                   SizedBox(width: 12),
                   Expanded(
-                    child: _buildStatCard(
+                    child: _buildHealthStatCard(
+                      metrics['useMetric'] == true 
+                          ? '${metrics['weight']?.toInt() ?? 'N/A'} kg'
+                          : '${metrics['weight']?.toInt() ?? 'N/A'} lb',
                       'Weight',
-                      weight != null 
-                        ? '${weight.toStringAsFixed(1)} ${useMetric ? "kg" : "lbs"}'
-                        : 'N/A',
                       Icons.monitor_weight,
-                      AppTheme.primaryPink,
-                      300,
+                      AppTheme.ovulationPhase,
+                      100,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: _buildHealthStatCard(
+                      bmi != null ? bmi.toStringAsFixed(1) : 'N/A',
+                      'BMI',
+                      Icons.analytics,
+                      _getBMIColor(bmi),
+                      200,
                     ),
                   ),
                 ],
@@ -367,7 +396,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color, int delayMs) {
+  Widget _buildHealthStatCard(String value, String label, IconData icon, Color color, int delayMs) {
     return GlassCard(
       margin: EdgeInsets.zero,
       padding: EdgeInsets.all(16),

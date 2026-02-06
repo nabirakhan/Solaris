@@ -24,7 +24,7 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
   DateTime _selectedSymptomDate = DateTime.now();
   Map<String, double> _symptoms = {
     'cramps': 0,
-    'mood': 5,
+    'irritability': 5,
     'energy': 5,
     'headache': 0,
     'bloating': 0,
@@ -446,9 +446,9 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
         'color': AppTheme.menstrualPhase
       },
       {
-        'key': 'mood',
-        'label': 'Mood',
-        'icon': Icons.sentiment_satisfied,
+        'key': 'irritability',
+        'label': 'Irritability',
+        'icon': Icons.sentiment_very_dissatisfied,
         'color': AppTheme.ovulationPhase
       },
       {
@@ -730,7 +730,7 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
         _symptomNotes = '';
         _symptoms = {
           'cramps': 0,
-          'mood': 5,
+          'irritability': 5,
           'energy': 5,
           'headache': 0,
           'bloating': 0,

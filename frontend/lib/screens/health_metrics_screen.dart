@@ -55,6 +55,8 @@ class _HealthMetricsScreenState extends State<HealthMetricsScreen> {
       initialDate: _selectedBirthdate ?? DateTime(2000),
       firstDate: DateTime(1920),
       lastDate: DateTime.now(),
+      // ✅ FIX #4: Add input mode to prevent manual text entry causing format issues
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -274,7 +276,8 @@ class _HealthMetricsScreenState extends State<HealthMetricsScreen> {
                           ),
                           child: Text(
                             _selectedBirthdate != null
-                                ? '${_selectedBirthdate!.day}/${_selectedBirthdate!.month}/${_selectedBirthdate!.year}'
+                                // ✅ FIX #4: Format date with leading zeros (DD/MM/YYYY)
+                                ? '${_selectedBirthdate!.day.toString().padLeft(2, '0')}/${_selectedBirthdate!.month.toString().padLeft(2, '0')}/${_selectedBirthdate!.year}'
                                 : 'Select your birthdate',
                             style: TextStyle(
                               color: _selectedBirthdate != null

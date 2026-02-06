@@ -6,7 +6,7 @@ import '../providers/cycle_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
-import '../widgets/panda_mascot.dart';
+import '../widgets/cuterus_mascot.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/ai_insights_card.dart';
 
@@ -23,6 +23,9 @@ class _TodayScreenState extends State<TodayScreen>
       PageController(viewportFraction: 0.85);
   int _currentRecommendationPage = 0;
   bool _isRefreshing = false;
+  
+  // ✅ FIX #1: Track expanded state for each recommendation card
+  Map<int, bool> _expandedCards = {};
 
   @override
   void initState() {
@@ -234,7 +237,30 @@ class _TodayScreenState extends State<TodayScreen>
     return Consumer<CycleProvider>(
       builder: (context, provider, child) {
         final phase = provider.currentPhase;
-        final daysSinceStart = provider.daysSinceStart;
+        // ✅ FIX #4: Calculate days since start properly, default to 1 instead of 0
+        int daysSinceStart = provider.daysSinceStart;
+        
+        // If daysSinceStart is 0 and we have an active cycle, calculate manually
+        if (daysSinceStart == 0 && provider.hasActiveCycle) {
+          try {
+            final currentCycle = provider.currentCycle;
+            if (currentCycle != null) {
+              final startDate = currentCycle['startDate'] ?? currentCycle['start_date'];
+              if (startDate != null) {
+                final start = DateTime.parse(startDate.toString());
+                final now = DateTime.now();
+                daysSinceStart = now.difference(start).inDays + 1; // +1 because day 1 is the start day
+              }
+            }
+          } catch (e) {
+            daysSinceStart = 1; // Default to day 1 if calculation fails
+          }
+        }
+        
+        // Ensure minimum day is 1 if there's an active cycle
+        if (provider.hasActiveCycle && daysSinceStart < 1) {
+          daysSinceStart = 1;
+        }
 
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: 20),
@@ -248,67 +274,65 @@ class _TodayScreenState extends State<TodayScreen>
             },
             child: GlassCard(
               margin: EdgeInsets.zero,
-              padding: EdgeInsets.all(24),
+              padding: EdgeInsets.zero,
               child: Container(
                 decoration: BoxDecoration(
                   gradient: _getPhaseGradient(phase),
                   borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
                 ),
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              _getPhaseIcon(phase),
-                              color: Colors.white,
-                              size: 28,
-                            ),
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _getPhaseTitle(phase),
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                Text(
-                                  'Day $daysSinceStart of cycle',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.white.withOpacity(0.9),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          child: Icon(
+                            _getPhaseIcon(phase),
+                            color: Colors.white,
+                            size: 28,
                           ),
-                        ],
-                      ),
-                      SizedBox(height: 20),
-                      Text(
-                        _getPhaseDescription(phase),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.95),
-                          height: 1.5,
                         ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _getPhaseTitle(phase),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                'Day $daysSinceStart of cycle',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      _getPhaseDescription(phase),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.95),
+                        height: 1.5,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -319,8 +343,44 @@ class _TodayScreenState extends State<TodayScreen>
   }
 
   Widget _buildPandaSection() {
-    // No padding or wrapper - panda travels across full screen width
-    return const EnhancedPandaMascot();
+    return Consumer<CycleProvider>(
+      builder: (context, provider, child) {
+        final phase = provider.currentPhase;
+        
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: GlassCard(
+            margin: EdgeInsets.zero,
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12), // ✅ FIX #1: Reduced vertical padding
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // ✅ FIX #1: Don't take more space than needed
+              children: [
+                // ✅ FIX #2: Use adorable Cuterus mascot
+                CuterusMascot(phase: phase),
+                SizedBox(height: 8), // ✅ FIX #1: Reduced spacing
+                Text(
+                  'Meet Cuterus! 💖',
+                  style: TextStyle(
+                    fontSize: 16, // ✅ FIX #1: Slightly smaller font
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+                SizedBox(height: 4), // ✅ FIX #1: Reduced spacing
+                Text(
+                  'Your personal uterus companion',
+                  style: TextStyle(
+                    fontSize: 13, // ✅ FIX #1: Smaller font
+                    color: AppTheme.textGray,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildStatsGrid() {
@@ -332,35 +392,32 @@ class _TodayScreenState extends State<TodayScreen>
             children: [
               Expanded(
                 child: _buildStatCard(
-                  'Cycles Tracked',
                   '${provider.totalCycles}',
+                  'Cycles Tracked',
                   Icons.calendar_today,
                   AppTheme.primaryPink,
-                  0,
                 ),
               ),
               SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
-                  'Avg Length',
                   provider.averageCycleLength != null
                       ? '${provider.averageCycleLength!.toStringAsFixed(0)} days'
                       : 'N/A',
+                  'Avg Length',
                   Icons.trending_up,
-                  AppTheme.primaryPurple,
-                  100,
+                  AppTheme.follicularPhase,
                 ),
               ),
               SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
-                  'Regularity',
                   provider.regularityScore != null
                       ? '${(provider.regularityScore! * 100).toStringAsFixed(0)}%'
                       : 'N/A',
+                  'Regularity',
                   Icons.check_circle,
-                  AppTheme.follicularPhase,
-                  200,
+                  AppTheme.ovulationPhase,
                 ),
               ),
             ],
@@ -370,18 +427,17 @@ class _TodayScreenState extends State<TodayScreen>
     );
   }
 
-  Widget _buildStatCard(
-      String label, String value, IconData icon, Color color, int delayMs) {
+  Widget _buildStatCard(String value, String label, IconData icon, Color color) {
     return GlassCard(
       margin: EdgeInsets.zero,
       padding: EdgeInsets.all(16),
       child: Column(
         children: [
           Container(
-            padding: EdgeInsets.all(12),
+            padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 24),
           ),
@@ -389,30 +445,34 @@ class _TodayScreenState extends State<TodayScreen>
           Text(
             value,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: color,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: AppTheme.textGray,
             ),
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
-    ).animate()
-        .fadeIn(duration: 600.ms, delay: Duration(milliseconds: delayMs));
+    );
   }
 
   Widget _buildRecommendationsCarousel() {
     return Consumer<CycleProvider>(
       builder: (context, provider, child) {
-        final recommendations = _getRecommendations(provider.currentPhase);
+        final phase = provider.currentPhase;
+        final recommendations = _getRecommendations(phase);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -425,99 +485,53 @@ class _TodayScreenState extends State<TodayScreen>
                   Text(
                     'Recommendations for You',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textDark,
                     ),
                   ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryPink.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${(_currentRecommendationPage % recommendations.length) + 1}/${recommendations.length}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryPink,
-                      ),
+                  Text(
+                    '${_currentRecommendationPage + 1}/${recommendations.length}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textGray,
                     ),
                   ),
                 ],
               ),
-            ).animate().fadeIn(duration: 600.ms, delay: 800.ms),
-
+            ),
             SizedBox(height: 16),
-
             SizedBox(
-              height: 160,
+              height: 165, // ✅ FIX #1: Reduced from 200 to 165 for more compact cards
               child: PageView.builder(
                 controller: _recommendationsController,
-                physics: BouncingScrollPhysics(),
-                itemCount: recommendations.length * 1000,
+                itemCount: recommendations.length,
                 itemBuilder: (context, index) {
-                  final actualIndex = index % recommendations.length;
-                  final recommendation = recommendations[actualIndex];
-
-                  return AnimatedBuilder(
-                    animation: _recommendationsController,
-                    builder: (context, child) {
-                      double value = 1.0;
-                      if (_recommendationsController.position.haveDimensions) {
-                        value =
-                            (_recommendationsController.page ?? 0) - index;
-                        value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
-                      }
-
-                      return Transform.scale(
-                        scale: Curves.easeOut.transform(value),
-                        child: Opacity(
-                          opacity: value,
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: _buildRecommendationCard(
-                      recommendation['title']!,
-                      recommendation['description']!,
-                      recommendation['icon'] as IconData,
-                      recommendation['color'] as Color,
-                    ),
+                  return _buildRecommendationCard(
+                    recommendations[index],
+                    index,
                   );
                 },
               ),
-            ).animate().fadeIn(duration: 600.ms, delay: 900.ms),
-
+            ),
             SizedBox(height: 16),
-
-            Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(
-                  recommendations.length,
-                  (index) => AnimatedContainer(
-                    duration: Duration(milliseconds: 300),
-                    margin: EdgeInsets.symmetric(horizontal: 4),
-                    width:
-                        (_currentRecommendationPage % recommendations.length) ==
-                                index
-                            ? 24
-                            : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color:
-                          (_currentRecommendationPage % recommendations.length) ==
-                                  index
-                              ? AppTheme.primaryPink
-                              : AppTheme.primaryPink.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                recommendations.length,
+                (index) => Container(
+                  margin: EdgeInsets.symmetric(horizontal: 4),
+                  width: _currentRecommendationPage == index ? 24 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: _currentRecommendationPage == index
+                        ? AppTheme.primaryPink
+                        : AppTheme.textGray.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
               ),
-            ).animate().fadeIn(duration: 600.ms, delay: 1000.ms),
+            ),
           ],
         );
       },
@@ -525,65 +539,95 @@ class _TodayScreenState extends State<TodayScreen>
   }
 
   Widget _buildRecommendationCard(
-      String title, String description, IconData icon, Color color) {
+    Map<String, dynamic> recommendation,
+    int index,
+  ) {
+    // ✅ FIX #1: Check if card is expanded
+    final isExpanded = _expandedCards[index] ?? false;
+    
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 12),
-      child: GlassCard(
-        margin: EdgeInsets.zero,
-        padding: EdgeInsets.all(16),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                color.withOpacity(0.15),
-                color.withOpacity(0.05),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Row(
+      padding: EdgeInsets.symmetric(horizontal: 8),
+      child: GestureDetector(
+        // ✅ FIX #1: Make card tappable to expand/collapse
+        onTap: () {
+          setState(() {
+            _expandedCards[index] = !isExpanded;
+          });
+        },
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          child: GlassCard(
+            margin: EdgeInsets.zero,
+            padding: EdgeInsets.all(16), // ✅ FIX #1: Reduced from 20 to 16
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: color, size: 32),
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: (recommendation['color'] as Color).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        recommendation['icon'] as IconData,
+                        color: recommendation['color'] as Color,
+                        size: 24,
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            recommendation['title'],
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                          // ✅ FIX #1: Show description conditionally
+                          SizedBox(height: 8),
+                          AnimatedCrossFade(
+                            firstChild: Text(
+                              recommendation['description'],
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.textGray,
+                                height: 1.4,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            secondChild: Text(
+                              recommendation['description'],
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.textGray,
+                                height: 1.4,
+                              ),
+                            ),
+                            crossFadeState: isExpanded 
+                                ? CrossFadeState.showSecond 
+                                : CrossFadeState.showFirst,
+                            duration: Duration(milliseconds: 200),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textDark,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: 6),
-                      Text(
-                        description,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.textGray,
-                          height: 1.4,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                // ✅ FIX #1: Add tap hint icon
+                SizedBox(height: 8),
+                Center(
+                  child: Icon(
+                    isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    size: 20,
+                    color: AppTheme.textGray.withOpacity(0.5),
                   ),
                 ),
               ],
