@@ -1,3 +1,4 @@
+// File: lib/screens/timeline_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -6,6 +7,8 @@ import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/animated_background.dart';
+import 'cycle_management_screen.dart'; // Add this import
+import 'log_screen.dart';
 
 class TimelineScreen extends StatefulWidget {
   @override
@@ -97,25 +100,38 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
   Widget _buildSimpleHeader() {
     return Container(
       padding: EdgeInsets.fromLTRB(24, 24, 24, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            'Your Timeline',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
-            ),
-          ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
-          SizedBox(height: 4),
-          Text(
-            'Track your journey over time',
-            style: TextStyle(
-              fontSize: 15,
-              color: AppTheme.textGray,
-            ),
-          ).animate().fadeIn(duration: 600.ms, delay: 100.ms),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your Timeline',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textDark,
+                ),
+              ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
+              SizedBox(height: 4),
+              Text(
+                'Track your journey over time',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: AppTheme.textGray,
+                ),
+              ).animate().fadeIn(duration: 600.ms, delay: 100.ms),
+            ],
+          ),
+          Spacer(),
+          // Add button to view all cycles
+          IconButton(
+            icon: Icon(Icons.list, color: AppTheme.primaryPink),
+            onPressed: () {
+              _navigateToCycleManagement(context);
+            },
+            tooltip: 'View All Cycles',
+          ),
         ],
       ),
     );
@@ -340,13 +356,28 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Cycle History',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Cycle History',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      _navigateToCycleManagement(context);
+                    },
+                    icon: Icon(Icons.open_in_new, size: 16),
+                    label: Text('Manage'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.primaryPink,
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: 16),
               ...validCycles.asMap().entries.map((entry) {
@@ -365,6 +396,7 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
     final startDateString = (cycle['start_date'] ?? cycle['startDate'])?.toString();
     final endDateString = (cycle['end_date'] ?? cycle['endDate'])?.toString();
     final flow = cycle['flow']?.toString() ?? 'medium';
+    final cycleId = cycle['_id'] ?? cycle['id'];
     
     if (startDateString == null || startDateString.isEmpty) {
       return SizedBox();
@@ -382,81 +414,86 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
       
       return Padding(
         padding: EdgeInsets.only(bottom: 16),
-        child: GlassCard(
-          margin: EdgeInsets.zero,
-          padding: EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primaryPink.withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    length != null ? '$length' : '?',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+        child: GestureDetector(
+          onTap: () {
+            _navigateToCycleManagement(context);
+          },
+          child: GlassCard(
+            margin: EdgeInsets.zero,
+            padding: EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryPink.withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      length != null ? '$length' : '?',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Cycle ${cycleProvider.cycles.length - index}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textDark,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      DateFormat('MMM d, yyyy').format(startDate),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.textGray,
-                      ),
-                    ),
-                    if (endDate != null)
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        'to ${DateFormat('MMM d, yyyy').format(endDate)}',
+                        'Cycle ${cycleProvider.cycles.length - index}',
                         style: TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.textLight,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textDark,
                         ),
                       ),
-                  ],
+                      SizedBox(height: 4),
+                      Text(
+                        DateFormat('MMM d, yyyy').format(startDate),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textGray,
+                        ),
+                      ),
+                      if (endDate != null)
+                        Text(
+                          'to ${DateFormat('MMM d, yyyy').format(endDate)}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.textLight,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              Container(
-                padding: EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppTheme.follicularPhase.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.follicularPhase.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    endDate != null ? Icons.check_circle : Icons.timelapse,
+                    color: endDate != null ? AppTheme.follicularPhase : AppTheme.warning,
+                    size: 24,
+                  ),
                 ),
-                child: Icon(
-                  endDate != null ? Icons.check_circle : Icons.timelapse,
-                  color: endDate != null ? AppTheme.follicularPhase : AppTheme.warning,
-                  size: 24,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ).animate().fadeIn(duration: 600.ms, delay: Duration(milliseconds: 100 * index))
@@ -503,6 +540,25 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
               ),
               textAlign: TextAlign.center,
             ).animate().fadeIn(duration: 600.ms, delay: 400.ms),
+            SizedBox(height: 24),
+            // Add a button to go to log screen
+            ElevatedButton.icon(
+              onPressed: () {
+                // Navigate to log screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => LogScreen(),
+                  ),
+                );
+              },
+              icon: Icon(Icons.add),
+              label: Text('Log Your First Period'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryPink,
+                foregroundColor: Colors.white,
+              ),
+            ),
           ],
         ),
       ),
@@ -553,5 +609,15 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
     return date.year == now.year && 
            date.month == now.month && 
            date.day == now.day;
+  }
+
+  // Navigation method to Cycle Management Screen
+  void _navigateToCycleManagement(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CycleManagementScreen(),
+      ),
+    );
   }
 }
