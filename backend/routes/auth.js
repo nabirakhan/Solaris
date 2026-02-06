@@ -12,7 +12,6 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 const EmailService = require('../services/emailService');
 const OTPService = require('../services/otpService');
-const { pool } = require('../config/database');
 
 // Configure multer for profile picture uploads (MUST BE DEFINED BEFORE ROUTES THAT USE IT)
 const storage = multer.diskStorage({
@@ -713,14 +712,5 @@ router.get('/', (req, res) => {
   });
 });
 
-// TEMPORARY FIX - Delete after using!
-router.get('/fix-otp-database', async (req, res) => {
-  try {
-    await pool.query(`ALTER TABLE users ALTER COLUMN otp_code TYPE VARCHAR(64)`);
-    res.json({ success: true, message: 'Database fixed!' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 module.exports = router;
