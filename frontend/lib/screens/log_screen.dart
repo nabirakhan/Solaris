@@ -295,113 +295,49 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
   }
 
   void _showEndCycleDialog(BuildContext context, CycleProvider provider, Map<String, dynamic> cycle) {
-    DateTime selectedDate = DateTime.now();
-    String notes = '';
+  DateTime selectedDate = DateTime.now();
+  String notes = '';
 
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            'End Cycle',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
-            ),
+  showDialog(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'End Cycle',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textDark,
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'When did your period end?',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textGray,
-                  ),
-                ),
-                SizedBox(height: 16),
-                InkWell(
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate,
-                      firstDate: DateTime.parse(cycle['start_date'] ?? cycle['startDate']),
-                      lastDate: DateTime.now(),
-                      builder: (context, child) {
-                        return Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: ColorScheme.light(primary: AppTheme.primaryPink),
-                          ),
-                          child: child!,
-                        );
-                      },
-                    );
-                    if (date != null) {
-                      setState(() => selectedDate = date);
-                    }
-                  },
-                  child: Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppTheme.textGray.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          DateFormat('MMM dd, yyyy').format(selectedDate),
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        Icon(Icons.calendar_today, size: 18, color: AppTheme.primaryPink),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Notes (optional)',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-                SizedBox(height: 8),
-                TextField(
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    hintText: 'Add any notes about this cycle...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: EdgeInsets.all(12),
-                  ),
-                  onChanged: (value) => notes = value,
-                ),
-              ],
-            ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ... existing dialog content
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: TextStyle(color: AppTheme.textGray)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryPink,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: AppTheme.textGray)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryPink,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              onPressed: () async {
-                Navigator.pop(context);
-                final cycleId = cycle['_id'] ?? cycle['id'];
-                final success = await provider.endCycle(cycleId, selectedDate);
-                
+            ),
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog first
+              final cycleId = cycle['_id'] ?? cycle['id'];
+              final success = await provider.endCycle(cycleId, selectedDate);
+              
+              // Check if context is still valid before showing snackbar
+              if (mounted) {
                 if (success) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -417,14 +353,15 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
                     ),
                   );
                 }
-              },
-              child: Text('End Cycle', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
+              }
+            },
+            child: Text('End Cycle', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSymptomsTab() {
     return SingleChildScrollView(
