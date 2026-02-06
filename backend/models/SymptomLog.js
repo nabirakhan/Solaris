@@ -147,8 +147,17 @@ class SymptomLog {
     }
   }
 
+  // ============================================================================
+  // FIX #3: Parameterized SQL interval to prevent SQL injection
+  // ============================================================================
+  // BEFORE: WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '${days} days'
+  // AFTER:  WHERE user_id = $1 AND date >= CURRENT_DATE - ($2 || ' days')::INTERVAL
+  // ============================================================================
   static async getStats(userId, days = 30) {
     try {
+      // Validate days parameter to prevent abuse
+      const validatedDays = Math.max(1, Math.min(365, parseInt(days) || 30));
+      
       const sql = `
         SELECT 
           COUNT(*) as total_logs,
@@ -160,10 +169,10 @@ class SymptomLog {
           AVG(sleep_hours) as avg_sleep,
           AVG(stress_level) as avg_stress
         FROM symptom_logs
-        WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '${days} days'
+        WHERE user_id = $1 AND date >= CURRENT_DATE - ($2 || ' days')::INTERVAL
       `;
 
-      const result = await query(sql, [userId]);
+      const result = await query(sql, [userId, validatedDays]);
       return result.rows[0];
     } catch (error) {
       throw error;

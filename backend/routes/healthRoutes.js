@@ -1,5 +1,4 @@
 // File: backend/routes/healthRoutes.js
-
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
@@ -85,7 +84,11 @@ router.get('/metrics', authenticateToken, async (req, res) => {
   }
 });
 
+// ============================================================================
 // POST /api/health/metrics - Save/update user's health metrics
+// ============================================================================
+// ✅ FIXED: Now uses PostgreSQL UPSERT to avoid UNIQUE constraint violations
+// ============================================================================
 router.post('/metrics', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -102,32 +105,25 @@ router.post('/metrics', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check if user already has health metrics
-    const existingMetrics = await pool.query(
-      'SELECT id FROM health_metrics WHERE user_id = $1',
-      [userId]
+    // ========================================================================
+    // FIX #2: Use PostgreSQL's UPSERT (INSERT ... ON CONFLICT)
+    // ========================================================================
+    // This is atomic and eliminates race conditions that could occur with
+    // the previous check-then-insert pattern
+    // ========================================================================
+    const result = await pool.query(
+      `INSERT INTO health_metrics (user_id, birthdate, height, weight, use_metric)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (user_id) 
+       DO UPDATE SET 
+         birthdate = EXCLUDED.birthdate,
+         height = EXCLUDED.height,
+         weight = EXCLUDED.weight,
+         use_metric = EXCLUDED.use_metric,
+         updated_at = NOW()
+       RETURNING id, user_id, birthdate, height, weight, use_metric, created_at, updated_at`,
+      [userId, birthdate, height, weight, useMetric !== false]
     );
-
-    let result;
-    
-    if (existingMetrics.rows.length > 0) {
-      // Update existing metrics
-      result = await pool.query(
-        `UPDATE health_metrics 
-         SET birthdate = $1, height = $2, weight = $3, use_metric = $4, updated_at = NOW()
-         WHERE user_id = $5
-         RETURNING id, user_id, birthdate, height, weight, use_metric, created_at, updated_at`,
-        [birthdate, height, weight, useMetric !== false, userId]
-      );
-    } else {
-      // Insert new metrics
-      result = await pool.query(
-        `INSERT INTO health_metrics (user_id, birthdate, height, weight, use_metric)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, user_id, birthdate, height, weight, use_metric, created_at, updated_at`,
-        [userId, birthdate, height, weight, useMetric !== false]
-      );
-    }
 
     const metrics = result.rows[0];
     

@@ -8,7 +8,7 @@ class Cycle {
         INSERT INTO cycles (user_id, start_date, flow, notes)
         VALUES ($1, $2, $3, $4)
         RETURNING id, user_id, start_date, end_date, flow, notes, 
-                  cycle_length, created_at, updated_at
+                  cycle_length, period_length, created_at, updated_at
       `;
 
       const values = [userId, startDate, flow, notes || null];
@@ -19,6 +19,9 @@ class Cycle {
     }
   }
 
+  // ============================================================================
+  // FIX #4: Added period_length to RETURNING clause
+  // ============================================================================
   static async update(id, userId, updates) {
     try {
       const allowedFields = ['end_date', 'flow', 'notes'];
@@ -49,7 +52,7 @@ class Cycle {
         SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
         WHERE id = $${paramCount} AND user_id = $${paramCount + 1}
         RETURNING id, user_id, start_date, end_date, flow, notes, 
-                  cycle_length, created_at, updated_at
+                  cycle_length, period_length, created_at, updated_at
       `;
 
       const result = await query(sql, values);
@@ -59,11 +62,14 @@ class Cycle {
     }
   }
 
+  // ============================================================================
+  // FIX #4: Added period_length to SELECT
+  // ============================================================================
   static async findByUserId(userId, limit = 50) {
     try {
       const sql = `
         SELECT id, user_id, start_date, end_date, flow, notes, 
-               cycle_length, created_at, updated_at
+               cycle_length, period_length, created_at, updated_at
         FROM cycles
         WHERE user_id = $1
         ORDER BY start_date DESC
@@ -77,11 +83,14 @@ class Cycle {
     }
   }
 
+  // ============================================================================
+  // FIX #4: Added period_length to SELECT
+  // ============================================================================
   static async findById(id, userId) {
     try {
       const sql = `
         SELECT id, user_id, start_date, end_date, flow, notes, 
-               cycle_length, created_at, updated_at
+               cycle_length, period_length, created_at, updated_at
         FROM cycles
         WHERE id = $1 AND user_id = $2
       `;
@@ -108,11 +117,14 @@ class Cycle {
     }
   }
 
+  // ============================================================================
+  // FIX #4: Added period_length to SELECT
+  // ============================================================================
   static async getLatest(userId) {
     try {
       const sql = `
         SELECT id, user_id, start_date, end_date, flow, notes, 
-               cycle_length, created_at, updated_at
+               cycle_length, period_length, created_at, updated_at
         FROM cycles
         WHERE user_id = $1
         ORDER BY start_date DESC
@@ -127,29 +139,30 @@ class Cycle {
   }
 
   static async getForAnalysis(userId, limit = 12) {
-  try {
-    const sql = `
-      SELECT 
-        id, 
-        start_date, 
-        end_date, 
-        flow,
-        CASE 
-          WHEN end_date IS NOT NULL THEN (end_date - start_date) + 1
-          ELSE (CURRENT_DATE - start_date) + 1  -- Calculate from start to today
-        END as cycle_length
-      FROM cycles
-      WHERE user_id = $1
-      ORDER BY start_date DESC
-      LIMIT $2
-    `;
+    try {
+      const sql = `
+        SELECT 
+          id, 
+          start_date, 
+          end_date, 
+          flow,
+          period_length,
+          CASE 
+            WHEN end_date IS NOT NULL THEN (end_date - start_date) + 1
+            ELSE (CURRENT_DATE - start_date) + 1  -- Calculate from start to today
+          END as cycle_length
+        FROM cycles
+        WHERE user_id = $1
+        ORDER BY start_date DESC
+        LIMIT $2
+      `;
 
-    const result = await query(sql, [userId, limit]);
-    return result.rows;
-  } catch (error) {
-    throw error;
+      const result = await query(sql, [userId, limit]);
+      return result.rows;
+    } catch (error) {
+      throw error;
+    }
   }
-}
 
   static async getAverageCycleLength(userId, limit = 6) {
     try {
@@ -176,11 +189,14 @@ class Cycle {
     }
   }
 
+  // ============================================================================
+  // FIX #4: Added period_length to SELECT
+  // ============================================================================
   static async getByDateRange(userId, startDate, endDate) {
     try {
       const sql = `
         SELECT id, user_id, start_date, end_date, flow, notes, 
-               cycle_length, created_at, updated_at
+               cycle_length, period_length, created_at, updated_at
         FROM cycles
         WHERE user_id = $1 AND start_date BETWEEN $2 AND $3
         ORDER BY start_date DESC
@@ -194,7 +210,9 @@ class Cycle {
   }
 
   // ============================================================================
-  // CYCLE DAY MANAGEMENT (NEW)
+  // CYCLE DAY MANAGEMENT
+  // ============================================================================
+  // NOTE: These functions require the cycle_days table (Bug #1 fix)
   // ============================================================================
 
   static async addDay({ cycleId, date, flow = 'medium', notes }) {
