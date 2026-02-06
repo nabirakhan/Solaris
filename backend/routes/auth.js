@@ -11,7 +11,7 @@ const fs = require('fs').promises;
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
-// Configure multer for profile picture uploads
+// Configure multer for profile picture uploads (MUST BE DEFINED BEFORE ROUTES THAT USE IT)
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
     const uploadDir = path.join(__dirname, '../uploads/profiles');
@@ -46,23 +46,289 @@ const upload = multer({
   }
 });
 
-// Endpoints documentation
-router.get('/', (req, res) => {
-  res.json({
-    service: 'Authentication API',
-    endpoints: {
-      signup: { method: 'POST', path: '/api/auth/signup', description: 'Create new account with email/password' },
-      login: { method: 'POST', path: '/api/auth/login', description: 'Login with email/password' },
-      google: { method: 'GET', path: '/api/auth/google', description: 'Start Google OAuth flow' },
-      google_callback: { method: 'GET', path: '/api/auth/google/callback', description: 'Google OAuth callback' },
-      google_mobile: { method: 'POST', path: '/api/auth/google/mobile', description: 'Mobile Google authentication' },
-      me: { method: 'GET', path: '/api/auth/me', description: 'Get current user profile', auth: true },
-      profile: { method: 'PUT', path: '/api/auth/profile', description: 'Update user profile', auth: true },
-      profile_picture: { method: 'POST', path: '/api/auth/profile/picture', description: 'Upload profile picture', auth: true },
-      stats: { method: 'GET', path: '/api/auth/stats', description: 'Get user statistics', auth: true },
-      logout: { method: 'POST', path: '/api/auth/logout', description: 'Logout user', auth: true }
+// Helper function to format user response with correct profile picture URL
+function formatUserResponse(user) {
+  const baseUrl = 'https://solaris-vhc8.onrender.com';
+  
+  let profilePicture = user.profile_picture || user.profilePicture;
+  
+  // If profile picture exists and is a relative path, convert to full URL
+  if (profilePicture) {
+    if (profilePicture.startsWith('/uploads/')) {
+      profilePicture = `${baseUrl}${profilePicture}`;
+    } else if (!profilePicture.startsWith('http')) {
+      // If it's neither a full URL nor starts with /uploads/, it might be a filename only
+      profilePicture = `${baseUrl}/uploads/profiles/${profilePicture}`;
     }
-  });
+  }
+  
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    dateOfBirth: user.date_of_birth,
+    profilePicture: profilePicture,
+    photoUrl: profilePicture, // Alternative field name for compatibility
+    accountType: user.account_type,
+    preferences: user.preferences,
+    emailVerified: user.email_verified,
+    createdAt: user.created_at,
+    lastLogin: user.last_login
+  };
+}
+
+// Generate JWT token helper function
+const generateToken = (userId, email) => {
+  return jwt.sign(
+    { userId, email },
+    process.env.JWT_SECRET,
+    { expiresIn: '30d' }
+  );
+};
+
+// UPDATED: Get current user endpoint with fixed profile picture URL
+router.get('/me', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const stats = await User.getStats(req.userId);
+    
+    res.json({
+      user: formatUserResponse(user), // ✅ UPDATED: Using formatUserResponse
+      stats
+    });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// UPDATED: Login endpoint with fixed profile picture URL
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const user = await User.findByEmail(email.toLowerCase());
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    if (!user.password) {
+      return res.status(401).json({ 
+        error: 'This account uses Google sign-in. Please use the Google sign-in button.' 
+      });
+    }
+
+    const isValidPassword = await User.comparePassword(password, user.password);
+
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    if (!user.email_verified) {
+      return res.status(401).json({ 
+        error: 'Please verify your email before logging in',
+        emailVerified: false 
+      });
+    }
+
+    await User.updateLastLogin(user.id);
+
+    const token = generateToken(user.id, user.email);
+
+    res.json({
+      message: 'Login successful',
+      token,
+      user: formatUserResponse(user) // ✅ UPDATED: Using formatUserResponse
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// UPDATED: Signup endpoint with fixed profile picture URL
+router.post('/signup', async (req, res) => {
+  try {
+    const { email, password, name, dateOfBirth } = req.body;
+
+    if (!email || !password || !name) {
+      return res.status(400).json({ 
+        error: 'Email, password, and name are required' 
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const existingUser = await User.findByEmail(email.toLowerCase());
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    const user = await User.create({
+      email: email.toLowerCase(),
+      password,
+      name,
+      dateOfBirth,
+      accountType: 'email',
+      emailVerified: true // Auto-verify for now
+    });
+
+    const token = generateToken(user.id, user.email);
+
+    res.status(201).json({
+      message: 'Account created successfully',
+      token,
+      user: formatUserResponse(user) // ✅ UPDATED: Using formatUserResponse
+    });
+
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// UPDATED: Profile picture upload endpoint with better URL handling
+router.post('/profile/picture', auth, upload.single('picture'), async (req, res) => {
+  try {
+    console.log('📸 Profile picture upload request received');
+    console.log('📸 User ID:', req.userId);
+    console.log('📸 File:', req.file);
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    // Store relative URL in database (IMPORTANT: This persists correctly)
+    const relativeUrl = `/uploads/profiles/${req.file.filename}`;
+    
+    // Create full URL for response
+    const fullImageUrl = `https://solaris-vhc8.onrender.com${relativeUrl}`;
+    
+    console.log('📸 Relative URL (stored in DB):', relativeUrl);
+    console.log('📸 Full URL (returned to client):', fullImageUrl);
+
+    // Update user's profile picture in database with RELATIVE URL
+    // This is key - we store the relative path, not the full URL
+    const user = await User.update(req.userId, {
+      profile_picture: relativeUrl  // Store relative path
+    });
+
+    if (!user) {
+      // Clean up uploaded file if user not found
+      await fs.unlink(req.file.path).catch(console.error);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log('✅ Profile picture updated in database');
+    console.log('✅ Stored value:', relativeUrl);
+
+    // Return full URL in response for immediate use
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture uploaded successfully',
+      photoUrl: fullImageUrl,  // Full URL for immediate use
+      user: formatUserResponse(user)  // ✅ UPDATED: Using formatUserResponse
+    });
+
+  } catch (error) {
+    console.error('❌ Profile picture upload error:', error);
+    
+    // Clean up uploaded file on error
+    if (req.file) {
+      await fs.unlink(req.file.path).catch(console.error);
+    }
+
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// UPDATED: Google sign-in with proper profile picture handling
+router.post('/google/mobile', async (req, res) => {
+  try {
+    const { email, name, photoUrl, googleId } = req.body;
+
+    if (!email || !googleId) {
+      return res.status(400).json({ error: 'Email and Google ID are required' });
+    }
+
+    let user = await User.findByGoogleId(googleId);
+
+    if (user) {
+      await User.updateLastLogin(user.id);
+      
+      // Update profile picture if it's a Google photo URL
+      if (photoUrl && photoUrl.startsWith('http')) {
+        await User.update(user.id, { profile_picture: photoUrl });
+        user.profile_picture = photoUrl;
+      }
+    } else {
+      user = await User.findByEmail(email.toLowerCase());
+
+      if (user) {
+        user = await User.linkGoogleAccount(user.id, googleId, photoUrl);
+        await User.updateLastLogin(user.id);
+      } else {
+        user = await User.create({
+          googleId,
+          email: email.toLowerCase(),
+          name,
+          profile_picture: photoUrl,
+          accountType: 'google'
+        });
+      }
+    }
+
+    const token = generateToken(user.id, user.email);
+
+    res.json({
+      message: 'Google sign-in successful',
+      token,
+      user: formatUserResponse(user) // ✅ UPDATED: Using formatUserResponse
+    });
+
+  } catch (error) {
+    console.error('Google mobile sign-in error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Profile update endpoint
+router.put('/profile', auth, async (req, res) => {
+  try {
+    const { name, dateOfBirth, preferences } = req.body;
+
+    const updates = {};
+    if (name) updates.name = name;
+    if (dateOfBirth) updates.date_of_birth = dateOfBirth;
+    if (preferences) updates.preferences = preferences;
+
+    const user = await User.update(req.userId, updates);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: formatUserResponse(user) // ✅ UPDATED: Using formatUserResponse
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Google OAuth Strategy
@@ -96,7 +362,7 @@ passport.use(new GoogleStrategy({
         googleId: profile.id,
         email: profile.emails[0].value,
         name: profile.displayName,
-        profilePicture: profile.photos[0]?.value,
+        profile_picture: profile.photos[0]?.value,
         accountType: 'google'
       });
 
@@ -108,104 +374,7 @@ passport.use(new GoogleStrategy({
   }
 ));
 
-const generateToken = (userId) => {
-  return jwt.sign(
-    { userId },
-    process.env.JWT_SECRET,
-    { expiresIn: '30d' }
-  );
-};
-
-const formatUserResponse = (user) => {
-  return {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    photoUrl: user.profile_picture,
-    profilePicture: user.profile_picture,
-    accountType: user.account_type,
-    dateOfBirth: user.date_of_birth,
-    preferences: user.preferences
-  };
-};
-
-router.post('/signup', async (req, res) => {
-  try {
-    const { email, password, name, dateOfBirth } = req.body;
-
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Please provide all required fields' });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
-
-    const existingUser = await User.findByEmail(email);
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
-    }
-
-    const user = await User.create({
-      email,
-      password,
-      name,
-      dateOfBirth,
-      accountType: 'email'
-    });
-
-    const token = generateToken(user.id);
-
-    res.status(201).json({
-      message: 'User created successfully',
-      token,
-      user: formatUserResponse(user)
-    });
-  } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Please provide email and password' });
-    }
-
-    const user = await User.findByEmail(email);
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    if (user.account_type === 'google' && !user.password) {
-      return res.status(401).json({
-        error: 'This account uses Google Sign-In. Please login with Google.'
-      });
-    }
-
-    const isMatch = await User.comparePassword(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    await User.updateLastLogin(user.id);
-
-    const token = generateToken(user.id);
-
-    res.json({
-      message: 'Login successful',
-      token,
-      user: formatUserResponse(user)
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
+// Google OAuth endpoints
 router.get('/google',
   passport.authenticate('google', {
     scope: ['profile', 'email'],
@@ -220,7 +389,7 @@ router.get('/google/callback',
   }),
   (req, res) => {
     try {
-      const token = generateToken(req.user.id);
+      const token = generateToken(req.user.id, req.user.email);
       res.redirect(`${process.env.FRONTEND_URL}/auth-success?token=${token}`);
     } catch (error) {
       console.error('Google callback error:', error);
@@ -229,145 +398,7 @@ router.get('/google/callback',
   }
 );
 
-router.post('/google/mobile', async (req, res) => {
-  try {
-    const { email, name, photoUrl, googleId } = req.body;
-
-    if (!email || !name) {
-      return res.status(400).json({ error: 'Invalid Google authentication data' });
-    }
-
-    let user = await User.findByGoogleId(googleId);
-
-    if (!user) {
-      user = await User.findByEmail(email);
-
-      if (user) {
-        user = await User.linkGoogleAccount(user.id, googleId, photoUrl);
-      } else {
-        user = await User.create({
-          email,
-          name,
-          googleId,
-          profilePicture: photoUrl,
-          accountType: 'google'
-        });
-      }
-    }
-
-    await User.updateLastLogin(user.id);
-
-    const token = generateToken(user.id);
-
-    res.json({
-      message: 'Google authentication successful',
-      token,
-      user: formatUserResponse(user)
-    });
-
-  } catch (error) {
-    console.error('Mobile Google auth error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.get('/me', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({ user: formatUserResponse(user) });
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.put('/profile', auth, async (req, res) => {
-  try {
-    const { name, dateOfBirth, preferences } = req.body;
-
-    const updates = {};
-    if (name) updates.name = name;
-    if (dateOfBirth) updates.date_of_birth = dateOfBirth;
-    if (preferences) updates.preferences = preferences;
-
-    const user = await User.update(req.userId, updates);
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({
-      message: 'Profile updated successfully',
-      user: formatUserResponse(user)
-    });
-  } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Profile picture upload endpoint
-router.post('/profile/picture', auth, upload.single('picture'), async (req, res) => {
-  try {
-    console.log('📸 Profile picture upload request received');
-    console.log('📸 User ID:', req.userId);
-    console.log('📸 File:', req.file);
-
-    if (!req.file) {
-      return res.status(400).json({ error: 'No image file provided' });
-    }
-
-    // Store relative URL in database
-    const relativeUrl = `/uploads/profiles/${req.file.filename}`;
-    
-    // Create full URL for response
-    const fullImageUrl = `https://solaris-vhc8.onrender.com${relativeUrl}`;
-    
-    console.log('📸 Relative URL:', relativeUrl);
-    console.log('📸 Full URL:', fullImageUrl);
-
-    // Update user's profile picture in database with relative URL
-    const user = await User.update(req.userId, {
-      profile_picture: relativeUrl
-    });
-
-    if (!user) {
-      // Clean up uploaded file if user not found
-      await fs.unlink(req.file.path).catch(console.error);
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    console.log('✅ Profile picture updated successfully');
-
-    // Return full URL in response
-    res.status(200).json({
-      success: true,
-      message: 'Profile picture uploaded successfully',
-      photoUrl: fullImageUrl,
-      user: {
-        ...formatUserResponse(user),
-        photoUrl: fullImageUrl,
-        profilePicture: fullImageUrl
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Profile picture upload error:', error);
-    
-    // Clean up uploaded file on error
-    if (req.file) {
-      await fs.unlink(req.file.path).catch(console.error);
-    }
-
-    res.status(500).json({ error: error.message });
-  }
-});
-
+// Stats endpoint
 router.get('/stats', auth, async (req, res) => {
   try {
     const stats = await User.getStats(req.userId);
@@ -378,12 +409,32 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
+// Logout endpoint
 router.post('/logout', auth, async (req, res) => {
   try {
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Endpoints documentation
+router.get('/', (req, res) => {
+  res.json({
+    service: 'Authentication API',
+    endpoints: {
+      signup: { method: 'POST', path: '/api/auth/signup', description: 'Create new account with email/password' },
+      login: { method: 'POST', path: '/api/auth/login', description: 'Login with email/password' },
+      google: { method: 'GET', path: '/api/auth/google', description: 'Start Google OAuth flow' },
+      google_callback: { method: 'GET', path: '/api/auth/google/callback', description: 'Google OAuth callback' },
+      google_mobile: { method: 'POST', path: '/api/auth/google/mobile', description: 'Mobile Google authentication' },
+      me: { method: 'GET', path: '/api/auth/me', description: 'Get current user profile', auth: true },
+      profile: { method: 'PUT', path: '/api/auth/profile', description: 'Update user profile', auth: true },
+      profile_picture: { method: 'POST', path: '/api/auth/profile/picture', description: 'Upload profile picture', auth: true },
+      stats: { method: 'GET', path: '/api/auth/stats', description: 'Get user statistics', auth: true },
+      logout: { method: 'POST', path: '/api/auth/logout', description: 'Logout user', auth: true }
+    }
+  });
 });
 
 module.exports = router;

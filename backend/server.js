@@ -1,3 +1,4 @@
+// File: backend/server.js
 const express = require('express');
 const cors = require('cors');
 const passport = require('passport');
@@ -24,7 +25,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ NEW: Serve static files from uploads directory
+// ✅ Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Passport
@@ -47,7 +48,7 @@ const testDatabaseConnection = async () => {
 };
 
 // ============================================================================
-// TEST ROUTE (ADD THIS FIRST!)
+// BASIC ENDPOINTS
 // ============================================================================
 
 app.get('/test-simple', (req, res) => {
@@ -58,10 +59,6 @@ app.get('/test-simple', (req, res) => {
   });
 });
 
-// ============================================================================
-// BASIC ENDPOINTS (MUST COME BEFORE API ROUTES)
-// ============================================================================
-
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -70,6 +67,7 @@ app.get('/health', (req, res) => {
     features: [
       'User Authentication',
       'Cycle Tracking',
+      'Period Day Logging',
       'Symptom Logging',
       'AI Insights',
       'Health Metrics',
@@ -83,7 +81,7 @@ app.get('/', (req, res) => {
     message: '🌟 SOLARIS - Period Tracker API',
     description: 'Backend API for menstrual cycle tracking and health insights',
     status: 'operational',
-    version: '1.0.0',
+    version: '2.0.0',
     environment: process.env.NODE_ENV || 'production',
     server_time: new Date().toISOString(),
     internal_port: process.env.PORT || 5000,
@@ -91,6 +89,7 @@ app.get('/', (req, res) => {
     api_base: '/api/*',
     available_endpoints: {
       auth: '/api/auth',
+      period_days: '/api/period-days',
       cycles: '/api/cycles',
       symptoms: '/api/symptoms',
       insights: '/api/insights',
@@ -106,10 +105,11 @@ app.get('/api/test', (req, res) => {
 });
 
 // ============================================================================
-// API ROUTES (COMES AFTER BASIC ENDPOINTS)
+// API ROUTES
 // ============================================================================
 
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/period-days', require('./routes/periodDays')); // NEW ROUTE
 app.use('/api/cycles', require('./routes/cycles'));
 app.use('/api/symptoms', require('./routes/symptoms'));
 app.use('/api/insights', require('./routes/insights'));
@@ -117,7 +117,7 @@ app.use('/api/health', require('./routes/healthRoutes'));
 app.use('/api/notifications', require('./routes/notifications'));
 
 // ============================================================================
-// ERROR HANDLING (MUST COME LAST)
+// ERROR HANDLING
 // ============================================================================
 
 // 404 handler - for undefined routes
@@ -134,6 +134,10 @@ app.use('*', (req, res) => {
       'POST /api/auth/login',
       'GET /api/auth/me',
       'POST /api/auth/profile/picture',
+      'GET /api/period-days',
+      'POST /api/period-days',
+      'PUT /api/period-days/:id',
+      'DELETE /api/period-days/:id',
       'GET /api/cycles',
       'POST /api/cycles',
       'GET /api/symptoms',
@@ -171,7 +175,7 @@ const startServer = async () => {
   
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log('\n🌟 ========================================');
-    console.log('🌟 SOLARIS - Period Tracker API');
+    console.log('🌟 SOLARIS - Period Tracker API v2.0');
     console.log('🌟 ========================================');
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🔗 http://localhost:${PORT}`);

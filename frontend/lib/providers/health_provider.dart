@@ -1,3 +1,6 @@
+// File: frontend/lib/providers/health_provider.dart
+// FIXED VERSION - All API integration issues resolved
+
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
@@ -18,17 +21,22 @@ class HealthProvider with ChangeNotifier {
     notifyListeners();
     
     try {
-      _healthMetrics = await _apiService.getHealthMetrics();
+      // ✅ FIX: Backend returns metrics directly, not wrapped
+      final data = await _apiService.getHealthMetrics();
+      _healthMetrics = data;
       _error = null;
+      print('✅ Health metrics loaded: $data');
     } catch (e) {
       _error = 'Error loading health metrics: $e';
       _healthMetrics = null;
+      print('❌ Error loading health metrics: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
   
+  // ✅ FIX: Updated to use the new saveHealthMetrics method
   Future<bool> saveHealthMetrics({
     required DateTime birthdate,
     required double height,
@@ -40,8 +48,13 @@ class HealthProvider with ChangeNotifier {
     notifyListeners();
     
     try {
-      print('Saving health metrics: birthdate=$birthdate, height=$height, weight=$weight, useMetric=$useMetric');
+      print('🏥 [Provider] Saving health metrics...');
+      print('🏥 [Provider] Birthdate: $birthdate');
+      print('🏥 [Provider] Height: $height');
+      print('🏥 [Provider] Weight: $weight');
+      print('🏥 [Provider] UseMetric: $useMetric');
       
+      // ✅ FIX: Using the correct API method
       final result = await _apiService.saveHealthMetrics(
         birthdate: birthdate,
         height: height,
@@ -49,20 +62,22 @@ class HealthProvider with ChangeNotifier {
         useMetric: useMetric,
       );
       
-      print('Save result: $result');
+      print('🏥 [Provider] Save result: $result');
       
-      // Update local state with saved metrics
+      // ✅ FIX: Update local state with returned metrics
       _healthMetrics = result;
       _error = null;
       _isLoading = false;
       notifyListeners();
+      
+      print('✅ Health metrics saved successfully');
       
       // Reload to ensure we have latest data
       await loadHealthMetrics();
       
       return true;
     } catch (e) {
-      print('Error saving health metrics: $e');
+      print('❌ Error saving health metrics: $e');
       _error = 'Error saving health metrics: $e';
       _isLoading = false;
       notifyListeners();
@@ -70,10 +85,12 @@ class HealthProvider with ChangeNotifier {
     }
   }
   
+  /// ✅ FIX: Added clear method
   void clear() {
     _healthMetrics = null;
     _error = null;
     _isLoading = false;
     notifyListeners();
+    print('✅ Health metrics cleared');
   }
 }

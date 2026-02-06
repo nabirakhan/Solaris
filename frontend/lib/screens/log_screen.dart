@@ -1,4 +1,4 @@
-// File: lib/screens/log_screen.dart
+// File: frontend/lib/screens/log_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -6,7 +6,7 @@ import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/animated_background.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
 
 class LogScreen extends StatefulWidget {
   @override
@@ -18,17 +18,19 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
   late AnimationController _fabController;
   late Animation<double> _fabAnimation;
 
+  // Period Tab State
   DateTime _selectedPeriodDate = DateTime.now();
   String _selectedFlow = 'medium';
   String _periodNotes = '';
 
+  // Symptoms Tab State
   DateTime _selectedSymptomDate = DateTime.now();
   Map<String, double> _symptoms = {
     'cramps': 0,
-    'irritability': 5,
-    'energy': 5,
     'headache': 0,
     'bloating': 0,
+    'moodSwings': 0,
+    'fatigue': 0,
   };
   double _sleepHours = 7;
   double _stressLevel = 5;
@@ -101,87 +103,96 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
 
   Widget _buildHeader() {
     return Container(
-      padding: EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Row(
         children: [
-          Text(
-            'Log Your Data',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryPink.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
-          SizedBox(height: 8),
-          Text(
-            'Track your journey, understand your body',
-            style: TextStyle(
-              fontSize: 15,
-              color: AppTheme.textGray,
+            child: Icon(Icons.edit_calendar, color: AppTheme.primaryPink, size: 28),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Daily Log',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
+                ).animate().fadeIn(duration: 600.ms).slideX(begin: -0.2),
+                SizedBox(height: 4),
+                Text(
+                  'Track your period and symptoms',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                  ),
+                ).animate().fadeIn(duration: 600.ms, delay: 100.ms),
+              ],
             ),
-          ).animate().fadeIn(duration: 600.ms, delay: 100.ms),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildTabBar() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20),
-      child: GlassCard(
-        margin: EdgeInsets.zero,
-        padding: EdgeInsets.all(4),
-        child: TabBar(
-          controller: _tabController,
-          indicator: BoxDecoration(
-            gradient: AppTheme.primaryGradient,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryPink.withOpacity(0.3),
-                blurRadius: 8,
-                offset: Offset(0, 4),
-              ),
-            ],
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryPink.withOpacity(0.1),
+            blurRadius: 20,
+            offset: Offset(0, 4),
           ),
-          labelColor: Colors.white,
-          unselectedLabelColor: AppTheme.textGray,
-          labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-          tabs: [
-            // Explicit height constrains the Tab so its Row child
-            // cannot overflow the indicator box.
-            Tab(
-              height: 44,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.water_drop, size: 18),
-                  SizedBox(width: 8),
-                  Text('Period'),
-                ],
-              ),
-            ),
-            Tab(
-              height: 44,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.favorite, size: 18),
-                  SizedBox(width: 8),
-                  Text('Symptoms'),
-                ],
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
-    ).animate()
-        .fadeIn(duration: 600.ms, delay: 200.ms)
-        .scale(begin: Offset(0.95, 0.95));
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          color: AppTheme.primaryPink,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        labelColor: Colors.white,
+        unselectedLabelColor: AppTheme.textGray,
+        labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+        tabs: [
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.water_drop, size: 18),
+                SizedBox(width: 8),
+                Text('Period'),
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.favorite, size: 18),
+                SizedBox(width: 8),
+                Text('Symptoms'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 600.ms, delay: 200.ms).scale(begin: Offset(0.95, 0.95));
   }
 
-    Widget _buildPeriodTab() {
+  Widget _buildPeriodTab() {
     return SingleChildScrollView(
       physics: BouncingScrollPhysics(),
       padding: EdgeInsets.all(20),
@@ -190,8 +201,37 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
         children: [
           SizedBox(height: 20),
 
+          // Info Card
+          GlassCard(
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryPink.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.info_outline, color: AppTheme.primaryPink),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    'Log each day of your period. Track flow and symptoms daily.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textGray,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ).animate().fadeIn(duration: 600.ms, delay: 200.ms).slideY(begin: 0.2),
+
+          SizedBox(height: 24),
+
           _buildDatePicker(
-            'Period Start Date',
+            'Period Date',
             _selectedPeriodDate,
             (date) => setState(() => _selectedPeriodDate = date),
             Icons.calendar_today,
@@ -208,22 +248,15 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
 
           _buildNotesField(
             'Notes (Optional)',
-            'How are you feeling?',
+            'How are you feeling today?',
             _periodNotes,
             (value) => _periodNotes = value,
           ).animate().fadeIn(duration: 600.ms, delay: 500.ms).slideY(begin: 0.2),
 
-          // ✅ ADD THE END CYCLE BUTTON HERE
-          SizedBox(height: 24),
-          _buildEndCycleButton()
-              .animate()
-              .fadeIn(duration: 600.ms, delay: 550.ms)
-              .slideY(begin: 0.2),
-
           SizedBox(height: 32),
 
           _buildActionButton(
-            'Log Period',
+            'Log Period Day',
             Icons.check_circle,
             () => _handlePeriodLog(),
           )
@@ -236,132 +269,6 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
       ),
     );
   }
-
-  // Add this in your log_screen.dart, after the Period tab
-  Widget _buildEndCycleButton() {
-    return Consumer<CycleProvider>(
-      builder: (context, provider, child) {
-        final hasActiveCycle = provider.hasActiveCycle;
-        final currentCycle = provider.currentCycle;
-        
-        if (!hasActiveCycle || currentCycle == null) return SizedBox();
-        
-        return Padding(
-          padding: EdgeInsets.only(top: 16),
-          child: GlassCard(
-            margin: EdgeInsets.zero,
-            onTap: () => _showEndCycleDialog(context, provider, currentCycle),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.warning.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.event_busy, color: AppTheme.warning),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'End Current Cycle',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textDark,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Mark your current cycle as complete',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.textGray,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.chevron_right, color: AppTheme.primaryPink),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showEndCycleDialog(BuildContext context, CycleProvider provider, Map<String, dynamic> cycle) {
-  DateTime selectedDate = DateTime.now();
-  String notes = '';
-
-  showDialog(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'End Cycle',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textDark,
-          ),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ... existing dialog content
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: AppTheme.textGray)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryPink,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: () async {
-              Navigator.pop(context); // Close dialog first
-              final cycleId = cycle['_id'] ?? cycle['id'];
-              final success = await provider.endCycle(cycleId, selectedDate);
-              
-              // Check if context is still valid before showing snackbar
-              if (mounted) {
-                if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Cycle ended successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to end cycle'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text('End Cycle', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    ),
-  );
-}
 
   Widget _buildSymptomsTab() {
     return SingleChildScrollView(
@@ -398,23 +305,20 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
 
           _buildNotesField(
             'Additional Notes',
-            'Anything else to track?',
+            'Any other symptoms or observations?',
             _symptomNotes,
             (value) => _symptomNotes = value,
-          )
-              .animate()
-              .fadeIn(duration: 600.ms, delay: 1000.ms)
-              .slideY(begin: 0.2),
+          ).animate().fadeIn(duration: 600.ms, delay: 900.ms),
 
           SizedBox(height: 32),
 
           _buildActionButton(
             'Log Symptoms',
-            Icons.favorite,
+            Icons.check_circle,
             () => _handleSymptomLog(),
           )
               .animate()
-              .fadeIn(duration: 600.ms, delay: 1100.ms)
+              .fadeIn(duration: 600.ms, delay: 1000.ms)
               .scale(begin: Offset(0.9, 0.9)),
 
           SizedBox(height: 100),
@@ -423,145 +327,158 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildDatePicker(String label, DateTime selectedDate,
-      Function(DateTime) onDateSelected, IconData icon) {
-    return GlassCard(
-      margin: EdgeInsets.zero,
-      onTap: () async {
-        final date = await showDatePicker(
-          context: context,
-          initialDate: selectedDate,
-          firstDate: DateTime.now().subtract(Duration(days: 365)),
-          lastDate: DateTime.now().add(Duration(days: 30)),
-          builder: (context, child) {
-            return Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme:
-                    ColorScheme.light(primary: AppTheme.primaryPink),
-              ),
-              child: child!,
+  Widget _buildDatePicker(
+    String label,
+    DateTime selectedDate,
+    Function(DateTime) onDateChanged,
+    IconData icon,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textDark,
+          ),
+        ),
+        SizedBox(height: 12),
+        GlassCard(
+          onTap: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: selectedDate,
+              firstDate: DateTime.now().subtract(Duration(days: 365)),
+              lastDate: DateTime.now(),
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: ColorScheme.light(
+                      primary: AppTheme.primaryPink,
+                      onPrimary: Colors.white,
+                      surface: Colors.white,
+                      onSurface: AppTheme.textDark,
+                    ),
+                  ),
+                  child: child!,
+                );
+              },
             );
+            if (date != null) {
+              onDateChanged(date);
+            }
           },
-        );
-        if (date != null) onDateSelected(date);
-      },
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryPink.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: AppTheme.primaryPink),
-          ),
-          SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.textGray,
-                    fontWeight: FontWeight.w500,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryPink.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textDark,
-                  ),
+                child: Icon(icon, color: AppTheme.primaryPink),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      DateFormat('EEEE, MMMM d, yyyy').format(selectedDate),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      DateFormat('h:mm a').format(selectedDate),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textGray,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Icon(Icons.chevron_right, color: AppTheme.primaryPink),
+            ],
           ),
-          Icon(Icons.chevron_right, color: AppTheme.primaryPink),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildFlowSelector() {
-    return GlassCard(
-      margin: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.water_drop, color: AppTheme.primaryPink, size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Flow Intensity',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
-                ),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Flow Intensity',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textDark,
           ),
-          SizedBox(height: 16),
-          Row(
-            children: [
-              _buildFlowOption('light', 'Light', Icons.water_drop_outlined),
-              SizedBox(width: 12),
-              _buildFlowOption('medium', 'Medium', Icons.water_drop),
-              SizedBox(width: 12),
-              _buildFlowOption('heavy', 'Heavy', Icons.waves),
-            ],
-          ),
-        ],
-      ),
+        ),
+        SizedBox(height: 12),
+        Row(
+          children: [
+            _buildFlowOption('Light', 'light', Icons.water_drop_outlined),
+            SizedBox(width: 12),
+            _buildFlowOption('Medium', 'medium', Icons.water_drop),
+            SizedBox(width: 12),
+            _buildFlowOption('Heavy', 'heavy', Icons.water_drop),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _buildFlowOption(String value, String label, IconData icon) {
+  Widget _buildFlowOption(String label, String value, IconData icon) {
     final isSelected = _selectedFlow == value;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _selectedFlow = value),
-        child: AnimatedContainer(
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
+        child: Container(
           padding: EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            gradient: isSelected ? AppTheme.primaryGradient : null,
-            color: isSelected ? null : AppTheme.almostWhite,
-            borderRadius: BorderRadius.circular(12),
+            color: isSelected
+                ? AppTheme.primaryPink
+                : Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isSelected ? Colors.transparent : AppTheme.divider,
-              width: 1.5,
+              color: isSelected
+                  ? AppTheme.primaryPink
+                  : AppTheme.primaryPink.withOpacity(0.2),
+              width: 2,
             ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: AppTheme.primaryPink.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: Offset(0, 4),
-                    ),
-                  ]
-                : null,
+            boxShadow: [
+              if (isSelected)
+                BoxShadow(
+                  color: AppTheme.primaryPink.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
+                ),
+            ],
           ),
           child: Column(
             children: [
               Icon(
                 icon,
-                color: isSelected ? Colors.white : AppTheme.textGray,
-                size: 28,
+                color: isSelected ? Colors.white : AppTheme.primaryPink,
+                size: 32,
               ),
               SizedBox(height: 8),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.white : AppTheme.textGray,
+                  color: isSelected ? Colors.white : AppTheme.textDark,
                 ),
               ),
             ],
@@ -573,211 +490,177 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
 
   List<Widget> _buildSymptomSliders() {
     final symptoms = [
-      {
-        'key': 'cramps',
-        'label': 'Cramps',
-        'icon': Icons.warning_amber,
-        'color': AppTheme.menstrualPhase
-      },
-      {
-        'key': 'irritability',
-        'label': 'Irritability',
-        'icon': Icons.sentiment_very_dissatisfied,
-        'color': AppTheme.ovulationPhase
-      },
-      {
-        'key': 'energy',
-        'label': 'Energy',
-        'icon': Icons.battery_charging_full,
-        'color': AppTheme.follicularPhase
-      },
-      {
-        'key': 'headache',
-        'label': 'Headache',
-        'icon': Icons.psychology,
-        'color': AppTheme.lutealPhase
-      },
-      {
-        'key': 'bloating',
-        'label': 'Bloating',
-        'icon': Icons.air,
-        'color': AppTheme.primaryPurple
-      },
+      {'key': 'cramps', 'label': 'Cramps', 'icon': Icons.monitor_heart},
+      {'key': 'headache', 'label': 'Headache', 'icon': Icons.psychology},
+      {'key': 'bloating', 'label': 'Bloating', 'icon': Icons.circle},
+      {'key': 'moodSwings', 'label': 'Mood Swings', 'icon': Icons.mood},
+      {'key': 'fatigue', 'label': 'Fatigue', 'icon': Icons.battery_0_bar},
     ];
 
     return symptoms.asMap().entries.map((entry) {
       final index = entry.key;
       final symptom = entry.value;
-      return _buildSymptomSlider(
-        symptom['label'] as String,
-        symptom['key'] as String,
-        symptom['icon'] as IconData,
-        symptom['color'] as Color,
-        index,
-      );
+      
+      return Padding(
+        padding: EdgeInsets.only(bottom: 20),
+        child: _buildSymptomSlider(
+          symptom['label'] as String,
+          symptom['key'] as String,
+          symptom['icon'] as IconData,
+        ),
+      ).animate().fadeIn(
+        duration: 600.ms,
+        delay: (500 + (index * 50)).ms,
+      ).slideX(begin: 0.2);
     }).toList();
   }
 
-  Widget _buildSymptomSlider(
-      String label, String key, IconData icon, Color color, int index) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 20),
-      child: GlassCard(
-        margin: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${_symptoms[key]!.toInt()}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 12),
-            SliderTheme(
-              data: SliderThemeData(
-                trackHeight: 6,
-                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 10),
-                overlayShape: RoundSliderOverlayShape(overlayRadius: 20),
-                activeTrackColor: color,
-                inactiveTrackColor: color.withOpacity(0.2),
-                thumbColor: color,
-                overlayColor: color.withOpacity(0.2),
-              ),
-              child: Slider(
-                value: _symptoms[key]!,
-                min: 0,
-                max: 10,
-                divisions: 10,
-                onChanged: (value) =>
-                    setState(() => _symptoms[key] = value),
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('None',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textGray)),
-                Text('Severe',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textGray)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    )
-        .animate()
-        .fadeIn(
-            duration: 600.ms,
-            delay: Duration(milliseconds: 500 + (index * 100)))
-        .slideX(begin: -0.2);
-  }
-
-  Widget _buildNotesField(String label, String hint, String value,
-      Function(String) onChanged) {
+  Widget _buildSymptomSlider(String label, String key, IconData icon) {
+    final value = _symptoms[key] ?? 0;
     return GlassCard(
-      margin: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textDark,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryPink.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: AppTheme.primaryPink, size: 20),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _getIntensityColor(value).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${value.toInt()}/10',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _getIntensityColor(value),
+                  ),
+                ),
+              ),
+            ],
           ),
           SizedBox(height: 12),
-          TextField(
-            maxLines: 4,
-            decoration: InputDecoration(
-              hintText: hint,
-              filled: true,
-              fillColor: AppTheme.almostWhite,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: _getIntensityColor(value),
+              inactiveTrackColor: AppTheme.primaryPink.withOpacity(0.1),
+              thumbColor: _getIntensityColor(value),
+              overlayColor: _getIntensityColor(value).withOpacity(0.2),
+              trackHeight: 6,
             ),
-            onChanged: onChanged,
+            child: Slider(
+              value: value,
+              min: 0,
+              max: 10,
+              divisions: 10,
+              onChanged: (newValue) {
+                setState(() => _symptoms[key] = newValue);
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton(
-      String label, IconData icon, VoidCallback onTap) {
-    return ScaleTransition(
-      scale: _fabAnimation,
-      child: Container(
-        width: double.infinity,
-        height: 60,
-        decoration: BoxDecoration(
-          gradient: AppTheme.primaryGradient,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primaryPink.withOpacity(0.4),
-              blurRadius: 20,
-              offset: Offset(0, 10),
-            ),
-          ],
+  Color _getIntensityColor(double value) {
+    if (value <= 3) return AppTheme.successColor;
+    if (value <= 6) return AppTheme.warning;
+    return AppTheme.errorColor;
+  }
+
+  Widget _buildNotesField(
+    String label,
+    String hint,
+    String value,
+    Function(String) onChanged,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textDark,
+          ),
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: Colors.white, size: 24),
-                SizedBox(width: 12),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
+        SizedBox(height: 12),
+        GlassCard(
+          child: TextField(
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: AppTheme.textGray.withOpacity(0.6)),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
             ),
+            style: TextStyle(color: AppTheme.textDark, fontSize: 15),
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton(String label, IconData icon, VoidCallback onPressed) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppTheme.primaryPink, AppTheme.primaryPink.withOpacity(0.8)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryPink.withOpacity(0.4),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 24),
+              SizedBox(width: 12),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -797,7 +680,7 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
       ),
     );
 
-    final success = await provider.startNewCycle(
+    final success = await provider.logPeriodDay(
       _selectedPeriodDate,
       _selectedFlow,
       _periodNotes.isEmpty ? null : _periodNotes,
@@ -809,11 +692,10 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Period logged successfully!'),
+          content: Text('Period day logged successfully!'),
           backgroundColor: AppTheme.successColor,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
 
@@ -821,6 +703,15 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
         _periodNotes = '';
         _selectedFlow = 'medium';
       });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to log period day'),
+          backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
     }
   }
 
@@ -839,8 +730,7 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
 
     final success = await provider.logSymptoms(
       date: _selectedSymptomDate,
-      symptoms:
-          _symptoms.map((key, value) => MapEntry(key, value.toInt())),
+      symptoms: _symptoms.map((key, value) => MapEntry(key, value.toInt())),
       sleepHours: _sleepHours,
       stressLevel: _stressLevel.toInt(),
       notes: _symptomNotes.isEmpty ? null : _symptomNotes,
@@ -855,8 +745,7 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
           content: Text('Symptoms logged successfully!'),
           backgroundColor: AppTheme.successColor,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
 
@@ -864,12 +753,21 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
         _symptomNotes = '';
         _symptoms = {
           'cramps': 0,
-          'irritability': 5,
-          'energy': 5,
           'headache': 0,
           'bloating': 0,
+          'moodSwings': 0,
+          'fatigue': 0,
         };
       });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to log symptoms'),
+          backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
     }
   }
 }
