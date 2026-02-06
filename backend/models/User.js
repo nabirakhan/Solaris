@@ -362,6 +362,149 @@ class User {
       return 0;
     }
   }
+  /**
+   * Update user's OTP code and expiry
+   * @param {string} userId - User ID
+   * @param {string} hashedOTP - Hashed OTP code
+   * @param {Date} expiresAt - Expiry timestamp
+   */
+  static async updateOTP(userId, hashedOTP, expiresAt) {
+    try {
+      const query = `
+        UPDATE users 
+        SET 
+          otp_code = $1,
+          otp_expires_at = $2,
+          otp_attempts = COALESCE(otp_attempts, 0) + 1,
+          otp_last_sent_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3
+        RETURNING id, email, otp_attempts, otp_last_sent_at
+      `;
+
+      const result = await pool.query(query, [hashedOTP, expiresAt, userId]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error updating OTP:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify user's email (clear OTP and mark as verified)
+   * @param {string} userId - User ID
+   */
+  static async verifyEmail(userId) {
+    try {
+      const query = `
+        UPDATE users 
+        SET 
+          email_verified = true,
+          otp_code = NULL,
+          otp_expires_at = NULL,
+          otp_attempts = 0,
+          otp_last_sent_at = NULL,
+          verification_token = NULL,
+          verification_token_expires = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING 
+          id, 
+          email, 
+          name, 
+          email_verified,
+          created_at
+      `;
+
+      const result = await pool.query(query, [userId]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error verifying email:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reset OTP attempts (call this periodically or after successful verification)
+   * @param {string} userId - User ID
+   */
+  static async resetOTPAttempts(userId) {
+    try {
+      const query = `
+        UPDATE users 
+        SET 
+          otp_attempts = 0,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+      `;
+
+      await pool.query(query, [userId]);
+    } catch (error) {
+      console.error('Error resetting OTP attempts:', error);
+      // Don't throw - this is not critical
+    }
+  }
+
+  /**
+   * Delete unverified users with expired OTPs
+   * Call this via cron job to clean up abandoned signups
+   */
+  static async deleteExpiredUnverifiedUsers() {
+    try {
+      const query = `
+        DELETE FROM users 
+        WHERE 
+          email_verified = false 
+          AND otp_expires_at IS NOT NULL
+          AND otp_expires_at < CURRENT_TIMESTAMP
+          AND created_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'
+        RETURNING email
+      `;
+      
+      const result = await pool.query(query);
+      
+      if (result.rows.length > 0) {
+        console.log(`🧹 Deleted ${result.rows.length} expired unverified users`);
+      }
+      
+      return result.rows.length;
+    } catch (error) {
+      console.error('Error deleting expired unverified users:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get user's OTP status (for debugging or admin panel)
+   * @param {string} userId - User ID
+   */
+  static async getOTPStatus(userId) {
+    try {
+      const query = `
+        SELECT 
+          email_verified,
+          otp_code IS NOT NULL as has_otp,
+          otp_expires_at,
+          otp_attempts,
+          otp_last_sent_at,
+          CASE 
+            WHEN otp_expires_at IS NULL THEN NULL
+            WHEN otp_expires_at < CURRENT_TIMESTAMP THEN true
+            ELSE false
+          END as otp_expired
+        FROM users 
+        WHERE id = $1
+      `;
+
+      const result = await pool.query(query, [userId]);
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error getting OTP status:', error);
+      return null;
+    }
+  }
+
 }
+
 
 module.exports = User;

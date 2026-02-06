@@ -10,6 +10,8 @@ const path = require('path');
 const fs = require('fs').promises;
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const EmailService = require('../services/emailService');
+const OTPService = require('../services/otpService');
 
 // Configure multer for profile picture uploads (MUST BE DEFINED BEFORE ROUTES THAT USE IT)
 const storage = multer.diskStorage({
@@ -197,6 +199,321 @@ router.post('/signup', async (req, res) => {
   } catch (error) {
     console.error('Signup error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/signup', async (req, res) => {
+  try {
+    const { email, password, name, dateOfBirth } = req.body;
+
+    // Validation
+    if (!email || !password || !name) {
+      return res.status(400).json({ 
+        error: 'Email, password, and name are required' 
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findByEmail(email.toLowerCase());
+    if (existingUser) {
+      // If user exists but not verified, allow resending OTP
+      if (!existingUser.email_verified) {
+        return res.status(400).json({ 
+          error: 'Email already registered but not verified. Please verify your email or request a new OTP.',
+          emailVerified: false,
+          userId: existingUser.id
+        });
+      }
+      return res.status(400).json({ error: 'Email already registered and verified' });
+    }
+
+    // Create user (unverified)
+    const user = await User.create({
+      email: email.toLowerCase(),
+      password,
+      name,
+      dateOfBirth,
+      accountType: 'email',
+      emailVerified: false // Important: don't auto-verify
+    });
+
+    // Generate OTP
+    const { otp, hashedOTP, expiresAt } = OTPService.generateOTPWithMetadata(10);
+
+    // Store OTP in database
+    await User.updateOTP(user.id, hashedOTP, expiresAt);
+
+    // Send OTP email
+    try {
+      await EmailService.sendOTPEmail(email, otp, name);
+    } catch (emailError) {
+      console.error('Failed to send OTP email:', emailError);
+      // Don't fail the signup - user can request resend
+    }
+
+    res.status(201).json({
+      message: 'Account created! Please check your email for verification code.',
+      userId: user.id,
+      email: OTPService.maskEmail(email),
+      expiresAt: expiresAt.toISOString()
+    });
+
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * SEND OTP - Send OTP to user's email
+ * POST /api/auth/send-otp
+ */
+router.post('/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const sanitizedEmail = OTPService.sanitizeEmail(email);
+    const user = await User.findByEmail(sanitizedEmail);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.email_verified) {
+      return res.status(400).json({ error: 'Email is already verified' });
+    }
+
+    // Check rate limiting
+    const { canSend, remainingSeconds } = OTPService.canRequestNewOTP(
+      user.otp_last_sent_at,
+      60 // 60-second cooldown
+    );
+
+    if (!canSend) {
+      return res.status(429).json({ 
+        error: `Please wait ${remainingSeconds} seconds before requesting a new code`,
+        remainingSeconds
+      });
+    }
+
+    // Check maximum attempts
+    const maxAttempts = parseInt(process.env.OTP_MAX_RESEND_ATTEMPTS) || 3;
+    if (user.otp_attempts >= maxAttempts) {
+      return res.status(429).json({ 
+        error: 'Maximum OTP requests exceeded. Please contact support.',
+        maxAttemptsReached: true
+      });
+    }
+
+    // Generate new OTP
+    const { otp, hashedOTP, expiresAt } = OTPService.generateOTPWithMetadata(10);
+
+    // Update user with new OTP
+    await User.updateOTP(user.id, hashedOTP, expiresAt);
+
+    // Send OTP email
+    await EmailService.sendOTPEmail(sanitizedEmail, otp, user.name);
+
+    res.json({
+      message: 'Verification code sent to your email',
+      email: OTPService.maskEmail(sanitizedEmail),
+      expiresAt: expiresAt.toISOString(),
+      attemptsRemaining: maxAttempts - (user.otp_attempts + 1)
+    });
+
+  } catch (error) {
+    console.error('Send OTP error:', error);
+    res.status(500).json({ error: 'Failed to send verification code' });
+  }
+});
+
+/**
+ * VERIFY OTP - Verify user's email with OTP
+ * POST /api/auth/verify-otp
+ */
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email and OTP are required' });
+    }
+
+    // Validate OTP format
+    const formatValidation = OTPService.validateOTPFormat(otp);
+    if (!formatValidation.valid) {
+      return res.status(400).json({ error: formatValidation.error });
+    }
+
+    const sanitizedEmail = OTPService.sanitizeEmail(email);
+    const user = await User.findByEmail(sanitizedEmail);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.email_verified) {
+      return res.status(400).json({ 
+        error: 'Email is already verified',
+        emailVerified: true
+      });
+    }
+
+    if (!user.otp_code) {
+      return res.status(400).json({ 
+        error: 'No verification code found. Please request a new one.' 
+      });
+    }
+
+    // Check if OTP expired
+    if (OTPService.isOTPExpired(user.otp_expires_at)) {
+      return res.status(400).json({ 
+        error: 'Verification code has expired. Please request a new one.',
+        expired: true
+      });
+    }
+
+    // Verify OTP
+    const isValid = OTPService.verifyOTP(otp, user.otp_code);
+
+    if (!isValid) {
+      return res.status(400).json({ 
+        error: 'Invalid verification code. Please try again.' 
+      });
+    }
+
+    // Mark email as verified and clear OTP
+    await User.verifyEmail(user.id);
+
+    // Send welcome email (optional, non-blocking)
+    EmailService.sendWelcomeEmail(sanitizedEmail, user.name).catch(err => {
+      console.error('Failed to send welcome email:', err);
+    });
+
+    // Generate auth token
+    const token = generateToken(user.id, user.email);
+
+    // Get updated user data
+    const verifiedUser = await User.findById(user.id);
+
+    res.json({
+      message: 'Email verified successfully!',
+      token,
+      user: formatUserResponse(verifiedUser)
+    });
+
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    res.status(500).json({ error: 'Failed to verify code' });
+  }
+});
+
+/**
+ * RESEND OTP - Resend verification code
+ * POST /api/auth/resend-otp
+ */
+router.post('/resend-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const sanitizedEmail = OTPService.sanitizeEmail(email);
+    const user = await User.findByEmail(sanitizedEmail);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.email_verified) {
+      return res.status(400).json({ error: 'Email is already verified' });
+    }
+
+    // Check rate limiting
+    const { canSend, remainingSeconds } = OTPService.canRequestNewOTP(
+      user.otp_last_sent_at,
+      60
+    );
+
+    if (!canSend) {
+      return res.status(429).json({ 
+        error: `Please wait ${remainingSeconds} seconds before requesting a new code`,
+        remainingSeconds
+      });
+    }
+
+    // Check maximum attempts
+    const maxAttempts = parseInt(process.env.OTP_MAX_RESEND_ATTEMPTS) || 3;
+    if (user.otp_attempts >= maxAttempts) {
+      return res.status(429).json({ 
+        error: 'Maximum OTP requests exceeded. Please try again later or contact support.',
+        maxAttemptsReached: true
+      });
+    }
+
+    // Generate new OTP
+    const { otp, hashedOTP, expiresAt } = OTPService.generateOTPWithMetadata(10);
+
+    // Update user
+    await User.updateOTP(user.id, hashedOTP, expiresAt);
+
+    // Send email
+    await EmailService.sendOTPEmail(sanitizedEmail, otp, user.name);
+
+    res.json({
+      message: 'New verification code sent to your email',
+      email: OTPService.maskEmail(sanitizedEmail),
+      expiresAt: expiresAt.toISOString(),
+      attemptsRemaining: maxAttempts - (user.otp_attempts + 1)
+    });
+
+  } catch (error) {
+    console.error('Resend OTP error:', error);
+    res.status(500).json({ error: 'Failed to resend verification code' });
+  }
+});
+
+/**
+ * CHECK EMAIL VERIFICATION STATUS
+ * GET /api/auth/verification-status/:email
+ */
+router.get('/verification-status/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const sanitizedEmail = OTPService.sanitizeEmail(email);
+    
+    const user = await User.findByEmail(sanitizedEmail);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const response = {
+      emailVerified: user.email_verified,
+      email: OTPService.maskEmail(sanitizedEmail)
+    };
+
+    // If not verified, include OTP status
+    if (!user.email_verified && user.otp_expires_at) {
+      response.otpExpired = OTPService.isOTPExpired(user.otp_expires_at);
+      response.timeRemaining = OTPService.formatTimeRemaining(user.otp_expires_at);
+    }
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('Check verification status error:', error);
+    res.status(500).json({ error: 'Failed to check verification status' });
   }
 });
 
