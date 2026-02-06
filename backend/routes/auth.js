@@ -12,6 +12,7 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 const EmailService = require('../services/emailService');
 const OTPService = require('../services/otpService');
+const { pool } = require('../config/database');
 
 // Configure multer for profile picture uploads (MUST BE DEFINED BEFORE ROUTES THAT USE IT)
 const storage = multer.diskStorage({
