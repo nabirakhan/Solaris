@@ -1,5 +1,6 @@
 // File: frontend/lib/providers/auth_provider.dart
 import 'dart:io';
+import 'dart:convert'; // Add this import
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/api_service.dart';
@@ -47,38 +48,55 @@ class AuthProvider with ChangeNotifier {
   // ============================================================================
   
   Future<Map<String, dynamic>> signup({
-    required String email,
-    required String password,
-    required String name,
-    String? dateOfBirth,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
+  required String email,
+  required String password,
+  required String name,
+  String? dateOfBirth,
+}) async {
+  _isLoading = true;
+  _errorMessage = null;
+  notifyListeners();
+  
+  try {
+    final response = await _apiService.signup(
+      email: email,
+      password: password,
+      name: name,
+      dateOfBirth: dateOfBirth,
+    );
+    
+    _isLoading = false;
     notifyListeners();
     
+    return {
+      'success': true,
+      'userId': response['userId'],
+      'email': email,
+      'maskedEmail': response['email'] ?? _maskEmail(email),
+      'expiresAt': response['expiresAt'],
+      'message': response['message'],
+    };
+  } catch (e) {
+    _isLoading = false;
+    
     try {
-      final response = await _apiService.signup(
-        email: email,
-        password: password,
-        name: name,
-        dateOfBirth: dateOfBirth,
-      );
+      // Try to parse the error as JSON
+      final errorString = e.toString().replaceAll('Exception: ', '');
+      final errorJson = json.decode(errorString);
+      _errorMessage = errorJson['error']?.toString() ?? 'Signup failed';
       
-      _isLoading = false;
       notifyListeners();
       
-      // OTP Flow: Return data for navigation to OTP screen
+      // Return the full error response including userId if present
       return {
-        'success': true,
-        'userId': response['userId'] ?? response['user']?['id'],
-        'email': email,
-        'maskedEmail': response['email'] ?? _maskEmail(email),
-        'expiresAt': response['expiresAt'],
-        'message': response['message'],
+        'success': false,
+        'error': _errorMessage,
+        if (errorJson['userId'] != null) 'userId': errorJson['userId'].toString(),
+        if (errorJson['emailVerified'] != null) 'emailVerified': errorJson['emailVerified'],
       };
-    } catch (e) {
+    } catch (_) {
+      // If not JSON, use the string error
       _errorMessage = e.toString().replaceAll('Exception: ', '');
-      _isLoading = false;
       notifyListeners();
       return {
         'success': false,
@@ -86,6 +104,7 @@ class AuthProvider with ChangeNotifier {
       };
     }
   }
+}
   
   // Verify OTP Code
   Future<Map<String, dynamic>> verifyOTP({

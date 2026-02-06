@@ -80,20 +80,46 @@ class _LoginScreenState extends State<LoginScreen>
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
+    
+    if (result['success'] == true && mounted) {
+      Navigator.of(context).pushReplacementNamed('/home');
+    } else if (result['error']?.contains('Please verify your email') == true) {
+      // User needs to verify email - navigate to OTP screen
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => OTPVerificationScreen(
+              email: _emailController.text.trim(),
+              userId: result['userId'],
+            ),
+          ),
+        );
+      }
+    } else if (mounted && result['error'] != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['error']!),
+          backgroundColor: AppConstants.errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(AppConstants.borderRadiusMedium),
+          ),
+        ),
+      );
+    }
   } else {
     result = await authProvider.signup(
       email: _emailController.text.trim(),
       password: _passwordController.text,
       name: _emailController.text.split('@')[0],
     );
-  }
 
-  if (result['success'] == true && mounted) {
-    if (_isLoginMode) {
-      Navigator.of(context).pushReplacementNamed('/home');
-    } else {
-      // For signup, navigate to OTP screen
-      Navigator.of(context).pushReplacement(
+    print('Signup result: $result'); // Add this for debugging
+
+    if (result['success'] == true && mounted) {
+      // For successful signup, navigate to OTP screen
+      Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => OTPVerificationScreen(
             email: _emailController.text.trim(),
@@ -101,19 +127,29 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
       );
-    }
-  } else if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result['error'] ?? 'Authentication failed'),
-        backgroundColor: AppConstants.errorColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(AppConstants.borderRadiusMedium),
+    } else if (result['userId'] != null && mounted) {
+      // This is the key fix: if we get a userId even on error (for "already registered but not verified")
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => OTPVerificationScreen(
+            email: _emailController.text.trim(),
+            userId: result['userId'],
+          ),
         ),
-      ),
-    );
+      );
+    } else if (mounted && result['error'] != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['error']!),
+          backgroundColor: AppConstants.errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(AppConstants.borderRadiusMedium),
+          ),
+        ),
+      );
+    }
   }
 }
 

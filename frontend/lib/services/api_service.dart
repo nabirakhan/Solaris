@@ -48,35 +48,41 @@ class ApiService {
   // ============================================================================
   
   Future<Map<String, dynamic>> signup({
-    required String email,
-    required String password,
-    required String name,
-    String? dateOfBirth,
-  }) async {
-    print('📝 Signing up: $email');
-    
-    final response = await http.post(
-      Uri.parse('${AppConstants.apiBaseUrl}/auth/signup'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-        'name': name,
-        if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
-      }),
-    );
-    
-    print('📝 Signup response: ${response.statusCode}');
-    print('📝 Signup body: ${response.body}');
-    
-    if (response.statusCode == 201) {
-      final data = jsonDecode(response.body);
-      return data;
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Signup failed');
-    }
+  required String email,
+  required String password,
+  required String name,
+  String? dateOfBirth,
+}) async {
+  print('📝 Signing up: $email');
+  
+  final response = await http.post(
+    Uri.parse('${AppConstants.apiBaseUrl}/auth/signup'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'email': email,
+      'password': password,
+      'name': name,
+      if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
+    }),
+  );
+  
+  print('📝 Signup response: ${response.statusCode}');
+  print('📝 Signup body: ${response.body}');
+  
+  if (response.statusCode == 201) {
+    final data = jsonDecode(response.body);
+    return data;
+  } else {
+    final error = jsonDecode(response.body);
+    // Create a custom exception that preserves the full error data
+    final errorData = {
+      'error': error['error'] ?? 'Signup failed',
+      if (error['userId'] != null) 'userId': error['userId'],
+      if (error['emailVerified'] != null) 'emailVerified': error['emailVerified'],
+    };
+    throw Exception(jsonEncode(errorData)); // Pass as JSON string
   }
+}
   
   Future<Map<String, dynamic>> verifyOTP({
     required String email,
