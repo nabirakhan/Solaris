@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const passport = require('passport');
+const path = require('path');
 require('dotenv').config();
 
 const { pool } = require('./config/database');
@@ -22,6 +23,9 @@ app.use(cors({
 // Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ✅ NEW: Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Passport
 app.use(passport.initialize());
@@ -129,6 +133,7 @@ app.use('*', (req, res) => {
       'POST /api/auth/signup',
       'POST /api/auth/login',
       'GET /api/auth/me',
+      'POST /api/auth/profile/picture',
       'GET /api/cycles',
       'POST /api/cycles',
       'GET /api/symptoms',

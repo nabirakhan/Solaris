@@ -5,8 +5,46 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs').promises;
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+
+// Configure multer for profile picture uploads
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../uploads/profiles');
+    try {
+      await fs.mkdir(uploadDir, { recursive: true });
+      cb(null, uploadDir);
+    } catch (error) {
+      cb(error, null);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  }
+});
 
 // Add this after the imports, before other routes
 router.get('/', (req, res) => {
@@ -20,6 +58,7 @@ router.get('/', (req, res) => {
       google_mobile: { method: 'POST', path: '/api/auth/google/mobile', description: 'Mobile Google authentication' },
       me: { method: 'GET', path: '/api/auth/me', description: 'Get current user profile', auth: true },
       profile: { method: 'PUT', path: '/api/auth/profile', description: 'Update user profile', auth: true },
+      profile_picture: { method: 'POST', path: '/api/auth/profile/picture', description: 'Upload profile picture', auth: true },
       stats: { method: 'GET', path: '/api/auth/stats', description: 'Get user statistics', auth: true },
       logout: { method: 'POST', path: '/api/auth/logout', description: 'Logout user', auth: true }
     }
@@ -85,6 +124,7 @@ const formatUserResponse = (user) => {
     id: user.id,
     email: user.email,
     name: user.name,
+    photoUrl: user.profile_picture, // ✅ Changed from profilePicture to photoUrl for consistency with frontend
     profilePicture: user.profile_picture,
     accountType: user.account_type,
     dateOfBirth: user.date_of_birth,
@@ -279,6 +319,53 @@ router.put('/profile', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Update profile error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ✅ NEW: Profile picture upload endpoint
+router.post('/profile/picture', auth, upload.single('picture'), async (req, res) => {
+  try {
+    console.log('📸 Profile picture upload request received');
+    console.log('📸 User ID:', req.userId);
+    console.log('📸 File:', req.file);
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    // Get the relative URL for the uploaded file
+    const imageUrl = `/uploads/profiles/${req.file.filename}`;
+    
+    console.log('📸 Image URL:', imageUrl);
+
+    // Update user's profile picture in database
+    const user = await User.update(req.userId, {
+      profile_picture: imageUrl
+    });
+
+    if (!user) {
+      // Clean up uploaded file if user not found
+      await fs.unlink(req.file.path).catch(console.error);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log('✅ Profile picture updated successfully');
+
+    res.status(200).json({
+      message: 'Profile picture uploaded successfully',
+      photoUrl: imageUrl,
+      user: formatUserResponse(user)
+    });
+
+  } catch (error) {
+    console.error('❌ Profile picture upload error:', error);
+    
+    // Clean up uploaded file on error
+    if (req.file) {
+      await fs.unlink(req.file.path).catch(console.error);
+    }
+
     res.status(500).json({ error: error.message });
   }
 });

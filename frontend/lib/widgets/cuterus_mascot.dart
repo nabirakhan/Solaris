@@ -22,6 +22,7 @@ class _CuterusMascotState extends State<CuterusMascot>
   late AnimationController _sparkleController;
   late AnimationController _sheddingController;
   late AnimationController _bounceController;
+  late AnimationController _floatingController; // ✅ NEW: Floating animation
   
   late Animation<double> _breathingAnimation;
   late Animation<double> _blinkAnimation;
@@ -29,6 +30,7 @@ class _CuterusMascotState extends State<CuterusMascot>
   late Animation<double> _sparkleAnimation;
   late Animation<double> _sheddingAnimation;
   late Animation<double> _bounceAnimation;
+  late Animation<double> _floatingAnimation; // ✅ NEW: Floating animation
 
   bool _showSpeechBubble = false;
   String _currentMessage = "";
@@ -48,6 +50,20 @@ class _CuterusMascotState extends State<CuterusMascot>
       end: 1.05,
     ).animate(CurvedAnimation(
       parent: _breathingController,
+      curve: Curves.easeInOut,
+    ));
+    
+    // ✅ NEW: Floating animation - continuous up and down motion
+    _floatingController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 3000),
+    )..repeat(reverse: true);
+    
+    _floatingAnimation = Tween<double>(
+      begin: -8.0,
+      end: 8.0,
+    ).animate(CurvedAnimation(
+      parent: _floatingController,
       curve: Curves.easeInOut,
     ));
     
@@ -233,6 +249,7 @@ class _CuterusMascotState extends State<CuterusMascot>
     _sparkleController.dispose();
     _sheddingController.dispose();
     _bounceController.dispose();
+    _floatingController.dispose(); // ✅ NEW: Dispose floating controller
     super.dispose();
   }
 
@@ -260,47 +277,55 @@ class _CuterusMascotState extends State<CuterusMascot>
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
                       ),
                     ],
                   ),
                   child: Text(
                     _currentMessage,
-                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF333333),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
             ),
-          
-          // Main Cuterus character
-          Positioned(
-            bottom: 20,
+
+          // ✅ UPDATED: Combined floating and breathing animations
+          AnimatedBuilder(
+            animation: Listenable.merge([
+              _breathingController,
+              _bounceController,
+              _floatingController, // ✅ NEW: Include floating animation
+            ]),
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(0, _bounceAnimation.value + _floatingAnimation.value), // ✅ NEW: Add floating offset
+                child: Transform.scale(
+                  scale: _breathingAnimation.value,
+                  child: child,
+                ),
+              );
+            },
             child: AnimatedBuilder(
               animation: Listenable.merge([
-                _breathingAnimation,
-                _bounceAnimation,
+                _blinkController,
+                _tearController,
+                _sparkleController,
+                _sheddingController,
               ]),
               builder: (context, child) {
-                return Transform.translate(
-                  offset: Offset(0, _bounceAnimation.value),
-                  child: Transform.scale(
-                    scale: _breathingAnimation.value,
-                    child: CustomPaint(
-                      size: Size(140, 140),
-                      painter: _CuterusPainter(
-                        phase: widget.phase,
-                        blinkValue: _blinkAnimation.value,
-                        tearValue: _tearAnimation.value,
-                        sparkleValue: _sparkleAnimation.value,
-                        sheddingValue: _sheddingAnimation.value,
-                      ),
-                    ),
+                return CustomPaint(
+                  size: Size(180, 160),
+                  painter: _CuterusPainter(
+                    phase: widget.phase,
+                    blinkValue: _blinkAnimation.value,
+                    tearValue: _tearAnimation.value,
+                    sparkleValue: _sparkleAnimation.value,
+                    sheddingValue: _sheddingAnimation.value,
                   ),
                 );
               },
@@ -338,23 +363,66 @@ class _CuterusPainter extends CustomPainter {
     if (phase == 'ovulation') bodyColor = Color(0xFFFFD6E0);
     if (phase == 'luteal') bodyColor = Color(0xFFFFC0CB);
 
+    // ✅ NEW: Add black outline for depth
+    final outlinePaint = Paint()
+      ..color = Color(0xFF000000)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0;
+
     final bodyPaint = Paint()
       ..color = bodyColor
       ..style = PaintingStyle.fill;
 
-    // Draw uterus body (pear shape)
+    // ✅ NEW: Shadow paint for depth
+    final shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.15)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 6);
+
+    // Draw shadow first
+    final shadowPath = Path();
+    shadowPath.moveTo(centerX, centerY - 18);
+    shadowPath.quadraticBezierTo(centerX - 35, centerY - 13, centerX - 40, centerY + 10);
+    shadowPath.quadraticBezierTo(centerX - 35, centerY + 40, centerX, centerY + 50);
+    shadowPath.quadraticBezierTo(centerX + 35, centerY + 40, centerX + 40, centerY + 10);
+    shadowPath.quadraticBezierTo(centerX + 35, centerY - 13, centerX, centerY - 18);
+    canvas.drawPath(shadowPath, shadowPaint);
+
+    // Draw uterus body (pear shape) with outline
     final bodyPath = Path();
     bodyPath.moveTo(centerX, centerY - 20);
     bodyPath.quadraticBezierTo(centerX - 35, centerY - 15, centerX - 40, centerY + 10);
     bodyPath.quadraticBezierTo(centerX - 35, centerY + 40, centerX, centerY + 50);
     bodyPath.quadraticBezierTo(centerX + 35, centerY + 40, centerX + 40, centerY + 10);
     bodyPath.quadraticBezierTo(centerX + 35, centerY - 15, centerX, centerY - 20);
+    
     canvas.drawPath(bodyPath, bodyPaint);
+    canvas.drawPath(bodyPath, outlinePaint);
 
-    // Draw fallopian tubes (arms)
+    // ✅ NEW: Add highlight for depth (top left)
+    final highlightPaint = Paint()
+      ..color = Colors.white.withOpacity(0.5)
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawCircle(Offset(centerX - 10, centerY - 10), 15, highlightPaint);
+
+    // ✅ NEW: Small highlight dots (like in reference image)
+    final smallHighlightPaint = Paint()
+      ..color = Colors.white.withOpacity(0.8)
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawCircle(Offset(centerX + 15, centerY - 15), 3, smallHighlightPaint);
+    canvas.drawCircle(Offset(centerX + 20, centerY - 17), 2, smallHighlightPaint);
+
+    // Draw fallopian tubes (arms) with outline
     final tubePaint = Paint()
       ..color = bodyColor.withOpacity(0.9)
       ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final tubeOutlinePaint = Paint()
+      ..color = Color(0xFF000000)
+      ..strokeWidth = 11
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
@@ -362,66 +430,118 @@ class _CuterusPainter extends CustomPainter {
     final leftTube = Path();
     leftTube.moveTo(centerX - 20, centerY - 10);
     leftTube.quadraticBezierTo(centerX - 50, centerY - 30, centerX - 60, centerY - 20);
+    canvas.drawPath(leftTube, tubeOutlinePaint);
     canvas.drawPath(leftTube, tubePaint);
 
     // Right tube
     final rightTube = Path();
     rightTube.moveTo(centerX + 20, centerY - 10);
     rightTube.quadraticBezierTo(centerX + 50, centerY - 30, centerX + 60, centerY - 20);
+    canvas.drawPath(rightTube, tubeOutlinePaint);
     canvas.drawPath(rightTube, tubePaint);
 
-    // Draw ovaries (hands)
+    // Draw ovaries (hands) with outline and depth
     final ovaryPaint = Paint()
       ..color = Color(0xFFFFF0F5)
       ..style = PaintingStyle.fill;
 
+    final ovaryOutlinePaint = Paint()
+      ..color = Color(0xFF000000)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+
+    // ✅ NEW: Ovary shadows for depth
+    final ovaryShadowPaint = Paint()
+      ..color = bodyColor.withOpacity(0.4)
+      ..style = PaintingStyle.fill;
+
     // Left ovary
+    canvas.drawCircle(Offset(centerX - 60, centerY - 20), 12, ovaryShadowPaint);
     canvas.drawCircle(Offset(centerX - 60, centerY - 20), 12, ovaryPaint);
-    canvas.drawCircle(Offset(centerX - 60, centerY - 20), 12, Paint()
-      ..color = bodyColor.withOpacity(0.3)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke);
+    canvas.drawCircle(Offset(centerX - 60, centerY - 20), 12, ovaryOutlinePaint);
 
     // Right ovary
+    canvas.drawCircle(Offset(centerX + 60, centerY - 20), 12, ovaryShadowPaint);
     canvas.drawCircle(Offset(centerX + 60, centerY - 20), 12, ovaryPaint);
-    canvas.drawCircle(Offset(centerX + 60, centerY - 20), 12, Paint()
-      ..color = bodyColor.withOpacity(0.3)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke);
+    canvas.drawCircle(Offset(centerX + 60, centerY - 20), 12, ovaryOutlinePaint);
 
-    // Draw cute face
-    final facePaint = Paint()
-      ..color = Color(0xFF333333)
+    // ✅ UPDATED: Better eyes with white sclera and black pupils (like reference image)
+    final scleraPaint = Paint()
+      ..color = Colors.white
       ..style = PaintingStyle.fill;
 
-    // Eyes
-    final eyeHeight = 8.0 * blinkValue;
-    final leftEyeRect = RRect.fromRectAndRadius(
+    final scleraOutlinePaint = Paint()
+      ..color = Color(0xFF000000)
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
+
+    final pupilPaint = Paint()
+      ..color = Color(0xFF000000)
+      ..style = PaintingStyle.fill;
+
+    // Eye dimensions
+    final eyeWidth = 18.0;
+    final eyeHeight = 22.0 * blinkValue;
+    
+    // Left eye
+    final leftEyeOval = RRect.fromRectAndRadius(
       Rect.fromCenter(
         center: Offset(centerX - 15, centerY + 5),
-        width: 8,
+        width: eyeWidth,
         height: eyeHeight,
       ),
-      Radius.circular(4),
+      Radius.circular(eyeWidth / 2),
     );
-    final rightEyeRect = RRect.fromRectAndRadius(
+    canvas.drawRRect(leftEyeOval, scleraPaint);
+    canvas.drawRRect(leftEyeOval, scleraOutlinePaint);
+    
+    // Left pupil (offset slightly to create looking effect)
+    if (blinkValue > 0.3) {
+      canvas.drawCircle(
+        Offset(centerX - 18, centerY + 5),
+        6 * blinkValue,
+        pupilPaint,
+      );
+    }
+
+    // Right eye
+    final rightEyeOval = RRect.fromRectAndRadius(
       Rect.fromCenter(
         center: Offset(centerX + 15, centerY + 5),
-        width: 8,
+        width: eyeWidth,
         height: eyeHeight,
       ),
-      Radius.circular(4),
+      Radius.circular(eyeWidth / 2),
     );
-    canvas.drawRRect(leftEyeRect, facePaint);
-    canvas.drawRRect(rightEyeRect, facePaint);
+    canvas.drawRRect(rightEyeOval, scleraPaint);
+    canvas.drawRRect(rightEyeOval, scleraOutlinePaint);
+    
+    // Right pupil (offset slightly to create looking effect)
+    if (blinkValue > 0.3) {
+      canvas.drawCircle(
+        Offset(centerX + 12, centerY + 5),
+        6 * blinkValue,
+        pupilPaint,
+      );
+    }
 
-    // Blush
+    // Blush - enhanced
     final blushPaint = Paint()
-      ..color = Color(0xFFFF6B9D).withOpacity(0.3)
+      ..color = Color(0xFFFF6B9D).withOpacity(0.35)
       ..style = PaintingStyle.fill;
     
-    canvas.drawCircle(Offset(centerX - 30, centerY + 12), 8, blushPaint);
-    canvas.drawCircle(Offset(centerX + 30, centerY + 12), 8, blushPaint);
+    canvas.drawCircle(Offset(centerX - 30, centerY + 15), 6, blushPaint);
+    canvas.drawCircle(Offset(centerX + 30, centerY + 15), 6, blushPaint);
+
+    // ✅ NEW: Small blush dots (like in reference image)
+    final blushDotPaint = Paint()
+      ..color = Color(0xFFFF6B9D).withOpacity(0.5)
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawCircle(Offset(centerX - 32, centerY + 17), 1.5, blushDotPaint);
+    canvas.drawCircle(Offset(centerX - 28, centerY + 17), 1.5, blushDotPaint);
+    canvas.drawCircle(Offset(centerX + 28, centerY + 17), 1.5, blushDotPaint);
+    canvas.drawCircle(Offset(centerX + 32, centerY + 17), 1.5, blushDotPaint);
 
     // Mouth - changes based on phase
     final mouthPaint = Paint()
@@ -433,8 +553,8 @@ class _CuterusPainter extends CustomPainter {
     if (phase == 'menstrual') {
       // Crying sad mouth
       final mouthPath = Path();
-      mouthPath.moveTo(centerX - 12, centerY + 25);
-      mouthPath.quadraticBezierTo(centerX, centerY + 20, centerX + 12, centerY + 25);
+      mouthPath.moveTo(centerX - 12, centerY + 28);
+      mouthPath.quadraticBezierTo(centerX, centerY + 23, centerX + 12, centerY + 28);
       canvas.drawPath(mouthPath, mouthPaint);
       
       // Tears!
@@ -480,8 +600,8 @@ class _CuterusPainter extends CustomPainter {
     } else if (phase == 'ovulation') {
       // Flirty smile
       final mouthPath = Path();
-      mouthPath.moveTo(centerX - 15, centerY + 22);
-      mouthPath.quadraticBezierTo(centerX, centerY + 28, centerX + 15, centerY + 22);
+      mouthPath.moveTo(centerX - 15, centerY + 25);
+      mouthPath.quadraticBezierTo(centerX, centerY + 31, centerX + 15, centerY + 25);
       canvas.drawPath(mouthPath, mouthPaint);
       
       // Sparkles!
@@ -495,32 +615,20 @@ class _CuterusPainter extends CustomPainter {
         _drawSparkle(canvas, centerX - 40, centerY + 40, 5, sparklePaint);
         _drawSparkle(canvas, centerX + 40, centerY + 40, 5, sparklePaint);
       }
-      
-      // Winky eye effect (right eye slightly different)
-      if (math.Random().nextDouble() > 0.7) {
-        final winkPaint = Paint()
-          ..color = Color(0xFF333333)
-          ..strokeWidth = 2
-          ..style = PaintingStyle.stroke;
-        canvas.drawLine(
-          Offset(centerX + 11, centerY + 5),
-          Offset(centerX + 19, centerY + 5),
-          winkPaint,
-        );
-      }
     } else if (phase == 'follicular') {
       // Gentle smile
       final mouthPath = Path();
-      mouthPath.moveTo(centerX - 12, centerY + 23);
-      mouthPath.quadraticBezierTo(centerX, centerY + 26, centerX + 12, centerY + 23);
+      mouthPath.moveTo(centerX - 12, centerY + 26);
+      mouthPath.quadraticBezierTo(centerX, centerY + 29, centerX + 12, centerY + 26);
       canvas.drawPath(mouthPath, mouthPaint);
     } else {
-      // Neutral/thoughtful
-      canvas.drawLine(
-        Offset(centerX - 10, centerY + 24),
-        Offset(centerX + 10, centerY + 24),
-        mouthPaint,
-      );
+      // Neutral/thoughtful - cute little line
+      final mouthPath = Path();
+      mouthPath.moveTo(centerX - 8, centerY + 27);
+      mouthPath.lineTo(centerX - 3, centerY + 25);
+      mouthPath.lineTo(centerX + 3, centerY + 25);
+      mouthPath.lineTo(centerX + 8, centerY + 27);
+      canvas.drawPath(mouthPath, mouthPaint);
     }
 
     // Shedding effect for menstrual phase
@@ -539,16 +647,23 @@ class _CuterusPainter extends CustomPainter {
       }
     }
 
-    // Cute cervix detail at bottom
-    final cervixPaint = Paint()
-      ..color = bodyColor.withOpacity(0.6)
+    // ✅ UPDATED: Cute cervix detail at bottom with outline and depth
+    final cervixShadowPaint = Paint()
+      ..color = bodyColor.withOpacity(0.4)
       ..style = PaintingStyle.fill;
+
+    final cervixPaint = Paint()
+      ..color = bodyColor.withOpacity(0.8)
+      ..style = PaintingStyle.fill;
+
+    final cervixOutlinePaint = Paint()
+      ..color = Color(0xFF000000)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
     
+    canvas.drawCircle(Offset(centerX, centerY + 46), 7, cervixShadowPaint);
     canvas.drawCircle(Offset(centerX, centerY + 45), 6, cervixPaint);
-    canvas.drawCircle(Offset(centerX, centerY + 45), 6, Paint()
-      ..color = bodyColor
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke);
+    canvas.drawCircle(Offset(centerX, centerY + 45), 6, cervixOutlinePaint);
   }
 
   void _drawSparkle(Canvas canvas, double x, double y, double size, Paint paint) {
