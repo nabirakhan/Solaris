@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
-import 'home_screen.dart';
+import 'otp_verification_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   @override
@@ -42,18 +42,26 @@ class _SignupScreenState extends State<SignupScreen> {
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    final success = await authProvider.signup(
+    final result = await authProvider.signup(
       email: _emailController.text.trim(),
       password: _passwordController.text,
       name: _nameController.text.trim(),
     );
 
-    if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed('/home');
+    if (result['success'] == true && mounted) {
+      // Navigate to OTP verification screen
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => OTPVerificationScreen(
+            email: _emailController.text.trim(),
+            userId: result['userId'],
+          ),
+        ),
+      );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authProvider.errorMessage ?? 'Signup failed'),
+          content: Text(result['error'] ?? 'Signup failed'),
           backgroundColor: Colors.red,
         ),
       );
@@ -61,21 +69,21 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _handleGoogleSignIn() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    final success = await authProvider.signInWithGoogle();
+  final result = await authProvider.signInWithGoogle();
 
-    if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed('/home');
-    } else if (mounted && authProvider.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.errorMessage!),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+  if (result['success'] == true && mounted) {
+    Navigator.of(context).pushReplacementNamed('/home');
+  } else if (mounted && result['error'] != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['error']!),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {

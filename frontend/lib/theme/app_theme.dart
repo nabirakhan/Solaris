@@ -9,6 +9,7 @@ class AppTheme {
   static const Color darkPink = Color(0xFFC2185B);
   static const Color lightPink = Color(0xFFF8BBD0);
   static const Color blushPink = Color(0xFFFCE4EC);
+  static const Color borderGray = Color(0xFFDDDDDD); 
   
   static const Color primaryPurple = Color(0xFF9C27B0);
   static const Color lightPurple = Color(0xFFE1BEE7);

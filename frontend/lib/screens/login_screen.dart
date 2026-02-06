@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../config/constants.dart';
+import 'otp_verification_screen.dart'; 
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -69,62 +70,74 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _handleEmailAuth() async {
-    if (!_formKey.currentState!.validate()) return;
+  if (!_formKey.currentState!.validate()) return;
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  Map<String, dynamic> result;
 
-    bool success;
+  if (_isLoginMode) {
+    result = await authProvider.login(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
+  } else {
+    result = await authProvider.signup(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+      name: _emailController.text.split('@')[0],
+    );
+  }
+
+  if (result['success'] == true && mounted) {
     if (_isLoginMode) {
-      success = await authProvider.login(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+      Navigator.of(context).pushReplacementNamed('/home');
     } else {
-      success = await authProvider.signup(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        name: _emailController.text.split('@')[0], // Simple name from email
-      );
-    }
-
-    if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed('/home');
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.errorMessage ?? 'Authentication failed'),
-          backgroundColor: AppConstants.errorColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(AppConstants.borderRadiusMedium),
+      // For signup, navigate to OTP screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => OTPVerificationScreen(
+            email: _emailController.text.trim(),
+            userId: result['userId'],
           ),
         ),
       );
     }
-  }
-
-  Future<void> _handleGoogleSignIn() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    final success = await authProvider.signInWithGoogle();
-
-    if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed('/home');
-    } else if (mounted && authProvider.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.errorMessage!),
-          backgroundColor: AppConstants.errorColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(AppConstants.borderRadiusMedium),
-          ),
+  } else if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['error'] ?? 'Authentication failed'),
+        backgroundColor: AppConstants.errorColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(AppConstants.borderRadiusMedium),
         ),
-      );
-    }
+      ),
+    );
   }
+}
+
+Future<void> _handleGoogleSignIn() async {
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+  final result = await authProvider.signInWithGoogle();
+
+  if (result['success'] == true && mounted) {
+    Navigator.of(context).pushReplacementNamed('/home');
+  } else if (mounted && result['error'] != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['error']!),
+        backgroundColor: AppConstants.errorColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(AppConstants.borderRadiusMedium),
+        ),
+      ),
+    );
+  }
+}
 
   @override
   Widget build(BuildContext context) {

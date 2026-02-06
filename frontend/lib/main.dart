@@ -6,9 +6,10 @@ import 'theme/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/cycle_provider.dart';
 import 'providers/health_provider.dart';
-import 'providers/notification_provider.dart'; // Add this import
+import 'providers/notification_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/otp_verification_screen.dart';
 import 'widgets/animated_background.dart';
 import 'widgets/glass_card.dart';
 import 'config/constants.dart';
@@ -16,7 +17,6 @@ import 'config/constants.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -41,7 +41,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => CycleProvider()),
         ChangeNotifierProvider(create: (_) => HealthProvider()),
-        ChangeNotifierProvider(create: (_) => NotificationProvider()), // Add this line
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: MaterialApp(
         title: AppConstants.appName,
@@ -165,7 +165,6 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Animated Logo
                 AnimatedBuilder(
                   animation: _controller,
                   builder: (context, child) {
@@ -209,7 +208,6 @@ class _SplashScreenState extends State<SplashScreen>
 
                 const SizedBox(height: 48),
 
-                // App Name
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: Column(
@@ -242,7 +240,6 @@ class _SplashScreenState extends State<SplashScreen>
 
                 const SizedBox(height: 60),
 
-                // Loading Indicator
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: SizedBox(

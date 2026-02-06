@@ -1,6 +1,4 @@
 // File: frontend/lib/services/api_service.dart
-// FIXED VERSION - All API integration issues resolved
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -11,38 +9,32 @@ class ApiService {
   static const String _tokenKey = 'auth_token';
   static const String _profilePictureKey = 'profile_picture_url';
   
-  // Get stored auth token
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
   }
   
-  // Save auth token
   Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
   }
   
-  // Clear auth token
   Future<void> clearToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_profilePictureKey);
   }
   
-  // Save profile picture URL
   Future<void> saveProfilePictureUrl(String url) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_profilePictureKey, url);
   }
   
-  // Get saved profile picture URL
   Future<String?> getProfilePictureUrl() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_profilePictureKey);
   }
   
-  // Get headers with auth token
   Future<Map<String, String>> _getHeaders() async {
     final token = await getToken();
     return {
@@ -52,7 +44,7 @@ class ApiService {
   }
   
   // ============================================================================
-  // AUTHENTICATION
+  // AUTHENTICATION WITH OTP
   // ============================================================================
   
   Future<Map<String, dynamic>> signup({
@@ -61,6 +53,8 @@ class ApiService {
     required String name,
     String? dateOfBirth,
   }) async {
+    print('📝 Signing up: $email');
+    
     final response = await http.post(
       Uri.parse('${AppConstants.apiBaseUrl}/auth/signup'),
       headers: {'Content-Type': 'application/json'},
@@ -72,16 +66,75 @@ class ApiService {
       }),
     );
     
+    print('📝 Signup response: ${response.statusCode}');
+    print('📝 Signup body: ${response.body}');
+    
     if (response.statusCode == 201) {
       final data = jsonDecode(response.body);
-      await saveToken(data['token']);
-      if (data['user']?['profilePicture'] != null) {
-        await saveProfilePictureUrl(data['user']['profilePicture']);
-      }
       return data;
     } else {
       final error = jsonDecode(response.body);
       throw Exception(error['error'] ?? 'Signup failed');
+    }
+  }
+  
+  Future<Map<String, dynamic>> verifyOTP({
+    required String email,
+    required String otp,
+  }) async {
+    print('🔐 Verifying OTP for: $email');
+    
+    final response = await http.post(
+      Uri.parse('${AppConstants.apiBaseUrl}/auth/verify-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'otp': otp,
+      }),
+    );
+    
+    print('🔐 OTP verification response: ${response.statusCode}');
+    print('🔐 OTP verification body: ${response.body}');
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      
+      if (data['token'] != null) {
+        await saveToken(data['token']);
+        print('✅ Token saved after OTP verification');
+      }
+      
+      if (data['user']?['profilePicture'] != null) {
+        await saveProfilePictureUrl(data['user']['profilePicture']);
+      }
+      
+      return data;
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Invalid verification code');
+    }
+  }
+  
+  Future<Map<String, dynamic>> resendOTP(String email) async {
+    print('📧 Resending OTP to: $email');
+    
+    final response = await http.post(
+      Uri.parse('${AppConstants.apiBaseUrl}/auth/resend-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+    
+    print('📧 Resend OTP response: ${response.statusCode}');
+    print('📧 Resend OTP body: ${response.body}');
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else if (response.statusCode == 429) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Too many requests. Please wait.');
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to resend code');
     }
   }
   
@@ -232,7 +285,7 @@ class ApiService {
   }
   
   // ============================================================================
-  // PERIOD DAYS (NEW SIMPLIFIED APPROACH)
+  // PERIOD DAYS
   // ============================================================================
   
   Future<List<dynamic>> getPeriodDays() async {
@@ -387,7 +440,6 @@ class ApiService {
   // SYMPTOMS
   // ============================================================================
   
-  // ✅ FIX: Changed to match backend response structure
   Future<List<dynamic>> getSymptoms() async {
     final response = await http.get(
       Uri.parse('${AppConstants.apiBaseUrl}/symptoms'),
@@ -396,7 +448,6 @@ class ApiService {
     
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      // ✅ FIX: Backend returns 'logs' not 'symptoms'
       return data['logs'] ?? [];
     } else {
       throw Exception('Failed to load symptoms');
@@ -485,62 +536,54 @@ class ApiService {
     }
   }
 
-// ============================================================================
-// AI ANALYSIS
-// ============================================================================
+  Future<Map<String, dynamic>?> requestAIAnalysis() async {
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.apiBaseUrl}/ai/analyze'),
+        headers: await _getHeaders(),
+      );
 
-Future<Map<String, dynamic>?> requestAIAnalysis() async {
-  try {
-    final response = await http.post(
-      Uri.parse('${AppConstants.apiBaseUrl}/ai/analyze'),
-      headers: await _getHeaders(),
-    );
+      print('🤖 [API] AI Analysis request status: ${response.statusCode}');
+      print('🤖 [API] AI Analysis response: ${response.body}');
 
-    print('🤖 [API] AI Analysis request status: ${response.statusCode}');
-    print('🤖 [API] AI Analysis response: ${response.body}');
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = jsonDecode(response.body);
-      return data;
-    } else {
-      // If the endpoint doesn't exist yet, return dummy data for development
-      print('⚠️ [API] AI Analysis endpoint not available, returning mock data');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        print('⚠️ [API] AI Analysis endpoint not available, returning mock data');
+        return _generateMockAIData();
+      }
+    } catch (e) {
+      print('❌ [API] AI Analysis error: $e');
       return _generateMockAIData();
     }
-  } catch (e) {
-    print('❌ [API] AI Analysis error: $e');
-    // Return mock data for development
-    return _generateMockAIData();
   }
-}
 
-// Helper method to generate mock AI data for development
-Map<String, dynamic> _generateMockAIData() {
-  final mockInsights = {
-    'summary': 'Based on your recent cycle patterns, you might be entering your luteal phase soon.',
-    'prediction': 'Your next period is predicted to start in approximately 7 days.',
-    'wellness_tips': [
-      'Consider increasing magnesium-rich foods to help with premenstrual symptoms.',
-      'Gentle exercise like yoga may help with any emerging discomfort.',
-      'Stay hydrated and monitor your sleep patterns this week.'
-    ],
-    'cycle_health_score': 82,
-    'key_observations': [
-      'Your cycle length has been consistent over the past 3 months.',
-      'Stress levels were higher during your last cycle - consider relaxation techniques.',
-      'Sleep quality appears to correlate with symptom severity.'
-    ],
-    'generated_at': DateTime.now().toIso8601String(),
-  };
-  
-  return mockInsights;
-}
+  Map<String, dynamic> _generateMockAIData() {
+    final mockInsights = {
+      'summary': 'Based on your recent cycle patterns, you might be entering your luteal phase soon.',
+      'prediction': 'Your next period is predicted to start in approximately 7 days.',
+      'wellness_tips': [
+        'Consider increasing magnesium-rich foods to help with premenstrual symptoms.',
+        'Gentle exercise like yoga may help with any emerging discomfort.',
+        'Stay hydrated and monitor your sleep patterns this week.'
+      ],
+      'cycle_health_score': 82,
+      'key_observations': [
+        'Your cycle length has been consistent over the past 3 months.',
+        'Stress levels were higher during your last cycle - consider relaxation techniques.',
+        'Sleep quality appears to correlate with symptom severity.'
+      ],
+      'generated_at': DateTime.now().toIso8601String(),
+    };
+    
+    return mockInsights;
+  }
   
   // ============================================================================
   // HEALTH METRICS
   // ============================================================================
   
-  // ✅ FIX: Updated to match backend response structure
   Future<Map<String, dynamic>> getHealthMetrics() async {
     final response = await http.get(
       Uri.parse('${AppConstants.apiBaseUrl}/health/metrics'),
@@ -548,17 +591,14 @@ Map<String, dynamic> _generateMockAIData() {
     );
     
     if (response.statusCode == 200) {
-      // Backend returns metrics directly, not wrapped
       return jsonDecode(response.body);
     } else if (response.statusCode == 404) {
-      // No metrics found - return null
       throw Exception('No health metrics found');
     } else {
       throw Exception('Failed to load health metrics');
     }
   }
   
-  // ✅ FIX: Added missing saveHealthMetrics method
   Future<Map<String, dynamic>> saveHealthMetrics({
     required DateTime birthdate,
     required double height,
@@ -575,7 +615,7 @@ Map<String, dynamic> _generateMockAIData() {
       Uri.parse('${AppConstants.apiBaseUrl}/health/metrics'),
       headers: await _getHeaders(),
       body: jsonEncode({
-        'birthdate': birthdate.toIso8601String().split('T')[0], // Send date only
+        'birthdate': birthdate.toIso8601String().split('T')[0],
         'height': height,
         'weight': weight,
         'useMetric': useMetric,
@@ -587,7 +627,6 @@ Map<String, dynamic> _generateMockAIData() {
     
     if (response.statusCode == 201 || response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      // Backend returns { message, metrics: {...} }
       return data['metrics'] ?? data;
     } else {
       final error = jsonDecode(response.body);
@@ -595,14 +634,12 @@ Map<String, dynamic> _generateMockAIData() {
     }
   }
   
-  // ✅ DEPRECATED: Old method - keeping for backwards compatibility
   Future<Map<String, dynamic>> logHealthMetrics({
     required double weight,
     required double height,
     double? temperature,
     int? heartRate,
   }) async {
-    // This method is deprecated - use saveHealthMetrics instead
     throw Exception('Use saveHealthMetrics instead of logHealthMetrics');
   }
   
@@ -610,7 +647,6 @@ Map<String, dynamic> _generateMockAIData() {
   // NOTIFICATIONS
   // ============================================================================
   
-  // ✅ FIX: Added missing getNotificationSettings method
   Future<Map<String, dynamic>> getNotificationSettings() async {
     final response = await http.get(
       Uri.parse('${AppConstants.apiBaseUrl}/notifications/settings'),
@@ -624,7 +660,6 @@ Map<String, dynamic> _generateMockAIData() {
     }
   }
   
-  // ✅ FIX: Added missing updateNotificationSettings method
   Future<Map<String, dynamic>> updateNotificationSettings({
     bool? periodReminders,
     bool? ovulationReminders,
@@ -656,21 +691,17 @@ Map<String, dynamic> _generateMockAIData() {
   // DATA MANAGEMENT
   // ============================================================================
   
-  // ✅ FIX: Added missing deleteAllUserData method for privacy screen
   Future<void> deleteAllUserData() async {
-    // Delete all period days
     final periodDays = await getPeriodDays();
     for (var day in periodDays) {
       await deletePeriodDay(day['id'].toString());
     }
     
-    // Delete all cycles (they should auto-delete with period days, but just in case)
     final cycles = await getCycles();
     for (var cycle in cycles) {
       try {
         await deleteCycle(cycle['id'].toString());
       } catch (e) {
-        // Cycle may have been auto-deleted
         print('Cycle deletion skipped: $e');
       }
     }
