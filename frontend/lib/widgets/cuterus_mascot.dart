@@ -1,6 +1,7 @@
 // File: lib/widgets/cuterus_mascot.dart
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:async'; // Add this line
 
 class CuterusMascot extends StatefulWidget {
   final String phase;
@@ -22,7 +23,8 @@ class _CuterusMascotState extends State<CuterusMascot>
   late AnimationController _sparkleController;
   late AnimationController _sheddingController;
   late AnimationController _bounceController;
-  late AnimationController _floatingController; // ✅ NEW: Floating animation
+  late AnimationController _floatingController;
+  late AnimationController _messageTimerController; // ✅ NEW: Message timer controller
   
   late Animation<double> _breathingAnimation;
   late Animation<double> _blinkAnimation;
@@ -30,10 +32,77 @@ class _CuterusMascotState extends State<CuterusMascot>
   late Animation<double> _sparkleAnimation;
   late Animation<double> _sheddingAnimation;
   late Animation<double> _bounceAnimation;
-  late Animation<double> _floatingAnimation; // ✅ NEW: Floating animation
+  late Animation<double> _floatingAnimation;
+  late Animation<double> _messageTimerAnimation; // ✅ NEW: Message timer animation
 
   bool _showSpeechBubble = false;
   String _currentMessage = "";
+  int _currentMessageIndex = 0;
+  Timer? _messageTimer;
+
+  // ✅ NEW: Expanded phase-specific messages
+  final Map<String, List<String>> _phaseMessages = {
+    'menstrual': [
+      "NO BABY? AGAIN??? AAAHHH! 😭",
+      "Why do I even try anymore... 💔",
+      "Another month, another betrayal! 😤",
+      "I prepared EVERYTHING! For what?! 😢",
+      "All that work for NOTHING! 😫",
+      "Time for the monthly clean-up... 🧹",
+      "Ugh... not this again... 😩",
+      "Why does it hurt so much? 😖",
+      "Someone get me chocolate! 🍫",
+      "I deserve a spa day after this! 💆‍♀️",
+    ],
+    'follicular': [
+      "Okay, getting ready again... 🌱",
+      "Fresh start! Let's do this! ✨",
+      "Time to rebuild and renew! 🌸",
+      "Getting stronger every day! 💪",
+      "New month, new opportunities! 🌈",
+      "I feel the energy coming back! ⚡",
+      "Hello, new beginnings! 👋",
+      "Preparing for the big show! 🎭",
+      "Growth mode activated! 📈",
+      "Feeling optimistic today! 😊",
+    ],
+    'ovulation': [
+      "Hey there... looking good today 😏✨",
+      "Is it hot in here or is it just me? 💕",
+      "Ready to make magic happen 🌟",
+      "Feeling myself today! 💅✨",
+      "This is my time to shine! ☀️",
+      "Confidence level: 100%! 💯",
+      "Feeling extra fertile today! 🌸",
+      "Look at me glow! ✨",
+      "Bring on the possibilities! 🎉",
+      "I'm the star of the show! 🌟",
+    ],
+    'luteal': [
+      "Hmm, we'll see what happens... 🤔",
+      "The waiting game begins... ⏳",
+      "Patience is a virtue... I guess... 😅",
+      "Crossing my fingers! 🤞",
+      "Will this be the month? 🤰",
+      "Keeping everything crossed! 🙏",
+      "The anticipation is real! 😬",
+      "Hope for the best! 🌈",
+      "Waiting patiently... well, trying to! 😌",
+      "Stay positive, stay hopeful! 🌟",
+    ],
+    'default': [
+      "Hello! I'm Cuterus! 💖",
+      "Ready to track your cycle? 📊",
+      "Let's make this month amazing! 🌈",
+      "Your body is incredible! 🌸",
+      "Trust your cycle, trust yourself! 💕",
+      "Every phase has its purpose! ✨",
+      "Listen to your body today! 👂",
+      "I'm here for you always! 🤗",
+      "Cycle tracking is self-care! 🛁",
+      "You're doing amazing! 👏",
+    ]
+  };
 
   @override
   void initState() {
@@ -53,7 +122,7 @@ class _CuterusMascotState extends State<CuterusMascot>
       curve: Curves.easeInOut,
     ));
     
-    // ✅ NEW: Floating animation - continuous up and down motion
+    // Floating animation - continuous up and down motion
     _floatingController = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: 3000),
@@ -137,7 +206,22 @@ class _CuterusMascotState extends State<CuterusMascot>
       curve: Curves.easeOut,
     ));
     
+    // ✅ NEW: Message timer animation
+    _messageTimerController = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: 4), // Show each message for 4 seconds
+    );
+    
+    _messageTimerAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _messageTimerController,
+      curve: Curves.easeInOut,
+    ));
+    
     _startPeriodicBlink();
+    _startMessageLoop(); // ✅ NEW: Start the message loop
     _triggerPhaseAnimation();
   }
 
@@ -155,13 +239,37 @@ class _CuterusMascotState extends State<CuterusMascot>
     });
   }
 
-  void _triggerPhaseAnimation() {
-    // Show speech bubble with phase-specific message
+  // ✅ NEW: Start the message loop
+  void _startMessageLoop() {
+    // Show first message immediately
+    _showNextMessage();
+    
+    // Set up the message timer
+    _messageTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+      if (mounted) {
+        _showNextMessage();
+      }
+    });
+  }
+
+  // ✅ NEW: Show next message in sequence
+  void _showNextMessage() {
+    final messages = _phaseMessages[widget.phase] ?? _phaseMessages['default']!;
+    
     setState(() {
+      _currentMessage = messages[_currentMessageIndex];
       _showSpeechBubble = true;
-      _currentMessage = _getPhaseMessage();
     });
 
+    // Start the timer animation
+    _messageTimerController.reset();
+    _messageTimerController.forward();
+
+    // Increment message index for next time
+    _currentMessageIndex = (_currentMessageIndex + 1) % messages.length;
+  }
+
+  void _triggerPhaseAnimation() {
     // Phase-specific animations
     if (widget.phase == 'menstrual') {
       _sheddingController.forward();
@@ -172,15 +280,6 @@ class _CuterusMascotState extends State<CuterusMascot>
         _bounceController.reverse();
       });
     }
-
-    // Hide speech bubble after 4 seconds
-    Future.delayed(Duration(seconds: 4), () {
-      if (mounted) {
-        setState(() {
-          _showSpeechBubble = false;
-        });
-      }
-    });
   }
 
   @override
@@ -188,6 +287,8 @@ class _CuterusMascotState extends State<CuterusMascot>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.phase != widget.phase) {
       _resetAnimations();
+      _currentMessageIndex = 0; // ✅ NEW: Reset message index when phase changes
+      _showNextMessage(); // ✅ NEW: Show new phase message immediately
       _triggerPhaseAnimation();
     }
   }
@@ -199,31 +300,10 @@ class _CuterusMascotState extends State<CuterusMascot>
     _bounceController.reset();
   }
 
-  String _getPhaseMessage() {
-    switch (widget.phase) {
-      case 'menstrual':
-        final messages = [
-          "NO BABY? AGAIN??? AAAHHH! 😭",
-          "Why do I even try anymore... 💔",
-          "Another month, another betrayal! 😤",
-          "I prepared EVERYTHING! For what?! 😢",
-        ];
-        return messages[math.Random().nextInt(messages.length)];
-      case 'follicular':
-        return "Okay, getting ready again... 🌱";
-      case 'ovulation':
-        final messages = [
-          "Hey there... looking good today 😏✨",
-          "Is it hot in here or is it just me? 💕",
-          "Ready to make magic happen 🌟",
-          "Feeling myself today! 💅✨",
-        ];
-        return messages[math.Random().nextInt(messages.length)];
-      case 'luteal':
-        return "Hmm, we'll see what happens... 🤔";
-      default:
-        return "Hello! I'm Cuterus! 💖";
-    }
+  // ✅ UPDATED: Get a random message (keeping for backward compatibility)
+  String _getRandomMessage() {
+    final messages = _phaseMessages[widget.phase] ?? _phaseMessages['default']!;
+    return messages[math.Random().nextInt(messages.length)];
   }
 
   Color _getPhaseColor() {
@@ -249,7 +329,9 @@ class _CuterusMascotState extends State<CuterusMascot>
     _sparkleController.dispose();
     _sheddingController.dispose();
     _bounceController.dispose();
-    _floatingController.dispose(); // ✅ NEW: Dispose floating controller
+    _floatingController.dispose();
+    _messageTimerController.dispose(); // ✅ NEW: Dispose message timer
+    _messageTimer?.cancel(); // ✅ NEW: Cancel the timer
     super.dispose();
   }
 
@@ -261,49 +343,81 @@ class _CuterusMascotState extends State<CuterusMascot>
         alignment: Alignment.center,
         clipBehavior: Clip.none,
         children: [
-          // Speech bubble
+          // Speech bubble with timer indicator
           if (_showSpeechBubble)
             Positioned(
               top: 0,
-              child: AnimatedOpacity(
-                opacity: _showSpeechBubble ? 1.0 : 0.0,
-                duration: Duration(milliseconds: 300),
-                child: Container(
-                  constraints: BoxConstraints(maxWidth: 250),
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
+              child: Column(
+                children: [
+                  // Speech bubble
+                  AnimatedOpacity(
+                    opacity: _showSpeechBubble ? 1.0 : 0.0,
+                    duration: Duration(milliseconds: 300),
+                    child: Container(
+                      constraints: BoxConstraints(maxWidth: 250),
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Text(
-                    _currentMessage,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                      child: Column(
+                        children: [
+                          Text(
+                            _currentMessage,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 4),
+                          // ✅ NEW: Timer indicator
+                          AnimatedBuilder(
+                            animation: _messageTimerAnimation,
+                            builder: (context, child) {
+                              return Container(
+                                height: 3,
+                                width: 200 * _messageTimerAnimation.value,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      _getPhaseColor(),
+                                      _getPhaseColor().withOpacity(0.7),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
-                    textAlign: TextAlign.center,
                   ),
-                ),
+                  // ✅ NEW: Indicator dots showing which message you're on
+                  SizedBox(height: 8),
+                  _buildMessageIndicators(),
+                ],
               ),
             ),
 
-          // ✅ UPDATED: Combined floating and breathing animations
+          // Combined floating and breathing animations
           AnimatedBuilder(
             animation: Listenable.merge([
               _breathingController,
               _bounceController,
-              _floatingController, // ✅ NEW: Include floating animation
+              _floatingController,
             ]),
             builder: (context, child) {
               return Transform.translate(
-                offset: Offset(0, _bounceAnimation.value + _floatingAnimation.value), // ✅ NEW: Add floating offset
+                offset: Offset(0, _bounceAnimation.value + _floatingAnimation.value),
                 child: Transform.scale(
                   scale: _breathingAnimation.value,
                   child: child,
@@ -331,11 +445,58 @@ class _CuterusMascotState extends State<CuterusMascot>
               },
             ),
           ),
+          
+          // ✅ NEW: Tap hint
+          Positioned(
+            bottom: -10,
+            child: AnimatedOpacity(
+              opacity: _showSpeechBubble ? 0.0 : 0.5,
+              duration: Duration(milliseconds: 300),
+              child: Row(
+                children: [
+                  Icon(Icons.touch_app, size: 14, color: Colors.grey),
+                  SizedBox(width: 4),
+                  Text(
+                    'Tap to see messages',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
+
+  // ✅ NEW: Build message indicators
+  Widget _buildMessageIndicators() {
+    final messages = _phaseMessages[widget.phase] ?? _phaseMessages['default']!;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(messages.length, (index) {
+        return Container(
+          width: 6,
+          height: 6,
+          margin: EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: index == _currentMessageIndex 
+                ? _getPhaseColor() 
+                : Colors.grey.withOpacity(0.3),
+          ),
+        );
+      }),
+    );
+  }
 }
+
+// The _CuterusPainter class remains exactly the same as before
+// ... [Keep all the existing _CuterusPainter code unchanged]
 
 class _CuterusPainter extends CustomPainter {
   final String phase;

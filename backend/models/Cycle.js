@@ -40,7 +40,7 @@ class Cycle {
 
       // Calculate cycle_length when end_date is updated
       if (updates.end_date) {
-        fields.push(`cycle_length = (end_date - start_date)`);
+        fields.push(`cycle_length = (end_date - start_date) + 1`);
       }
 
       values.push(id, userId);
@@ -127,21 +127,29 @@ class Cycle {
   }
 
   static async getForAnalysis(userId, limit = 12) {
-    try {
-      const sql = `
-        SELECT id, start_date, end_date, cycle_length, flow
-        FROM cycles
-        WHERE user_id = $1 AND cycle_length IS NOT NULL
-        ORDER BY start_date DESC
-        LIMIT $2
-      `;
+  try {
+    const sql = `
+      SELECT 
+        id, 
+        start_date, 
+        end_date, 
+        flow,
+        CASE 
+          WHEN end_date IS NOT NULL THEN (end_date - start_date) + 1
+          ELSE (CURRENT_DATE - start_date) + 1  -- Calculate from start to today
+        END as cycle_length
+      FROM cycles
+      WHERE user_id = $1
+      ORDER BY start_date DESC
+      LIMIT $2
+    `;
 
-      const result = await query(sql, [userId, limit]);
-      return result.rows;
-    } catch (error) {
-      throw error;
-    }
+    const result = await query(sql, [userId, limit]);
+    return result.rows;
+  } catch (error) {
+    throw error;
   }
+}
 
   static async getAverageCycleLength(userId, limit = 6) {
     try {

@@ -6,6 +6,7 @@ import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/animated_background.dart';
+import 'package:intl/intl.dart'; 
 
 class LogScreen extends StatefulWidget {
   @override
@@ -180,7 +181,7 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
         .scale(begin: Offset(0.95, 0.95));
   }
 
-  Widget _buildPeriodTab() {
+    Widget _buildPeriodTab() {
     return SingleChildScrollView(
       physics: BouncingScrollPhysics(),
       padding: EdgeInsets.all(20),
@@ -212,6 +213,13 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
             (value) => _periodNotes = value,
           ).animate().fadeIn(duration: 600.ms, delay: 500.ms).slideY(begin: 0.2),
 
+          // ✅ ADD THE END CYCLE BUTTON HERE
+          SizedBox(height: 24),
+          _buildEndCycleButton()
+              .animate()
+              .fadeIn(duration: 600.ms, delay: 550.ms)
+              .slideY(begin: 0.2),
+
           SizedBox(height: 32),
 
           _buildActionButton(
@@ -225,6 +233,195 @@ class _LogScreenState extends State<LogScreen> with TickerProviderStateMixin {
 
           SizedBox(height: 100),
         ],
+      ),
+    );
+  }
+
+  // Add this in your log_screen.dart, after the Period tab
+  Widget _buildEndCycleButton() {
+    return Consumer<CycleProvider>(
+      builder: (context, provider, child) {
+        final hasActiveCycle = provider.hasActiveCycle;
+        final currentCycle = provider.currentCycle;
+        
+        if (!hasActiveCycle || currentCycle == null) return SizedBox();
+        
+        return Padding(
+          padding: EdgeInsets.only(top: 16),
+          child: GlassCard(
+            margin: EdgeInsets.zero,
+            onTap: () => _showEndCycleDialog(context, provider, currentCycle),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warning.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.event_busy, color: AppTheme.warning),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'End Current Cycle',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Mark your current cycle as complete',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textGray,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: AppTheme.primaryPink),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEndCycleDialog(BuildContext context, CycleProvider provider, Map<String, dynamic> cycle) {
+    DateTime selectedDate = DateTime.now();
+    String notes = '';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'End Cycle',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textDark,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'When did your period end?',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGray,
+                  ),
+                ),
+                SizedBox(height: 16),
+                InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: DateTime.parse(cycle['start_date'] ?? cycle['startDate']),
+                      lastDate: DateTime.now(),
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: ColorScheme.light(primary: AppTheme.primaryPink),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (date != null) {
+                      setState(() => selectedDate = date);
+                    }
+                  },
+                  child: Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppTheme.textGray.withOpacity(0.3)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          DateFormat('MMM dd, yyyy').format(selectedDate),
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        Icon(Icons.calendar_today, size: 18, color: AppTheme.primaryPink),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Notes (optional)',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+                SizedBox(height: 8),
+                TextField(
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Add any notes about this cycle...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: EdgeInsets.all(12),
+                  ),
+                  onChanged: (value) => notes = value,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: TextStyle(color: AppTheme.textGray)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryPink,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () async {
+                Navigator.pop(context);
+                final cycleId = cycle['_id'] ?? cycle['id'];
+                final success = await provider.endCycle(cycleId, selectedDate);
+                
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Cycle ended successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to end cycle'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: Text('End Cycle', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
       ),
     );
   }

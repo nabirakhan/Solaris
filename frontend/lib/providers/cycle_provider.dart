@@ -71,11 +71,14 @@ class CycleProvider with ChangeNotifier {
     try {
       await _apiService.updateCycle(
         id: cycleId,
-        endDate: endDate.toIso8601String(),
+        endDate: endDate.toIso8601String().split('T')[0],
       );
       
       await loadCycles();
+      await loadCurrentInsights();
+      
       _isLoading = false;
+      notifyListeners();
       return true;
     } catch (e) {
       _error = 'Error ending cycle: $e';
@@ -304,6 +307,7 @@ class CycleProvider with ChangeNotifier {
     }
     return null;
   }
+  
   
   /// Get total number of cycles tracked
   int get totalCycles => _cycles.length;

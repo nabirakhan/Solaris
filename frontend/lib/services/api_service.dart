@@ -237,13 +237,14 @@ class ApiService {
     }
   }
   
+  // Change PATCH to PUT
   Future<Map<String, dynamic>> updateCycle({
     required String id,
     String? endDate,
     String? flow,
     String? notes,
   }) async {
-    final response = await http.put(
+    final response = await http.put( // ← CHANGE FROM PATCH TO PUT
       Uri.parse('${AppConstants.apiBaseUrl}/cycles/$id'),
       headers: await _getHeaders(),
       body: jsonEncode({
@@ -256,10 +257,10 @@ class ApiService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
-      throw Exception('Failed to update cycle');
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to update cycle');
     }
   }
-
   /// NEW: Delete a cycle
   Future<void> deleteCycle(String cycleId) async {
     final response = await http.delete(
