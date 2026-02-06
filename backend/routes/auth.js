@@ -159,49 +159,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// UPDATED: Signup endpoint with fixed profile picture URL
-router.post('/signup', async (req, res) => {
-  try {
-    const { email, password, name, dateOfBirth } = req.body;
-
-    if (!email || !password || !name) {
-      return res.status(400).json({ 
-        error: 'Email, password, and name are required' 
-      });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
-
-    const existingUser = await User.findByEmail(email.toLowerCase());
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
-    }
-
-    const user = await User.create({
-      email: email.toLowerCase(),
-      password,
-      name,
-      dateOfBirth,
-      accountType: 'email',
-      emailVerified: true // Auto-verify for now
-    });
-
-    const token = generateToken(user.id, user.email);
-
-    res.status(201).json({
-      message: 'Account created successfully',
-      token,
-      user: formatUserResponse(user) // ✅ UPDATED: Using formatUserResponse
-    });
-
-  } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
+// UPDATED: Signup endpoint with OTP verification
 router.post('/signup', async (req, res) => {
   try {
     const { email, password, name, dateOfBirth } = req.body;
@@ -281,7 +239,7 @@ router.post('/send-otp', async (req, res) => {
     }
 
     const sanitizedEmail = OTPService.sanitizeEmail(email);
-    const user = await User.findByEmail(sanitizedEmail);
+    const user = await User.findByEmailWithOTP(sanitizedEmail);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });

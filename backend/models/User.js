@@ -16,7 +16,6 @@ class User {
     try {
       let hashedPassword = null;
 
-      // Only hash password if it's provided (not for Google sign-in)
       if (password) {
         const salt = await bcrypt.genSalt(10);
         hashedPassword = await bcrypt.hash(password, salt);
@@ -87,6 +86,10 @@ class User {
           verification_token_expires,
           reset_token,
           reset_token_expires,
+          otp_code,
+          otp_expires_at,
+          otp_attempts,
+          otp_last_sent_at,
           created_at,
           last_login
         FROM users 
@@ -118,6 +121,10 @@ class User {
           verification_token_expires,
           reset_token,
           reset_token_expires,
+          otp_code,
+          otp_expires_at,
+          otp_attempts,
+          otp_last_sent_at,
           created_at,
           last_login
         FROM users 
@@ -174,9 +181,7 @@ class User {
       const values = [];
       let paramCount = 1;
 
-      // Build dynamic update query
       Object.keys(updates).forEach(key => {
-        // Convert camelCase to snake_case for database
         const dbKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
         fields.push(`${dbKey} = $${paramCount}`);
         values.push(updates[key]);
@@ -187,7 +192,7 @@ class User {
         throw new Error('No fields to update');
       }
 
-      values.push(id); // Add ID as last parameter
+      values.push(id);
 
       const query = `
         UPDATE users 
@@ -214,154 +219,6 @@ class User {
     }
   }
 
-  static async verifyEmail(userId) {
-    try {
-      const query = `
-        UPDATE users 
-        SET 
-          email_verified = true,
-          verification_token = NULL,
-          verification_token_expires = NULL,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-        RETURNING 
-          id, 
-          email, 
-          name, 
-          email_verified,
-          created_at
-      `;
-
-      const result = await pool.query(query, [userId]);
-      return result.rows[0];
-    } catch (error) {
-      console.error('Error verifying email:', error);
-      throw error;
-    }
-  }
-
-  static async updateVerificationToken(userId, verificationToken, verificationTokenExpires) {
-    try {
-      const query = `
-        UPDATE users 
-        SET 
-          verification_token = $1,
-          verification_token_expires = $2,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = $3
-        RETURNING 
-          id, 
-          email, 
-          name,
-          email_verified
-      `;
-
-      const result = await pool.query(query, [
-        verificationToken, 
-        verificationTokenExpires, 
-        userId
-      ]);
-      return result.rows[0];
-    } catch (error) {
-      console.error('Error updating verification token:', error);
-      throw error;
-    }
-  }
-
-  static async linkGoogleAccount(userId, googleId, profilePicture) {
-    try {
-      const query = `
-        UPDATE users 
-        SET 
-          google_id = $1, 
-          profile_picture = COALESCE(profile_picture, $2),
-          email_verified = true,
-          verification_token = NULL,
-          verification_token_expires = NULL,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = $3
-        RETURNING 
-          id, 
-          email, 
-          name, 
-          date_of_birth, 
-          google_id,
-          profile_picture, 
-          account_type, 
-          preferences,
-          created_at
-      `;
-
-      const result = await pool.query(query, [googleId, profilePicture, userId]);
-      return result.rows[0];
-    } catch (error) {
-      console.error('Error linking Google account:', error);
-      throw error;
-    }
-  }
-
-  static async updateLastLogin(userId) {
-    try {
-      const query = `
-        UPDATE users 
-        SET last_login = CURRENT_TIMESTAMP
-        WHERE id = $1
-      `;
-
-      await pool.query(query, [userId]);
-    } catch (error) {
-      console.error('Error updating last login:', error);
-      // Don't throw - this is not critical
-    }
-  }
-
-  static async getStats(userId) {
-    try {
-      const cyclesQuery = `
-        SELECT COUNT(*) as total_cycles
-        FROM cycles
-        WHERE user_id = $1
-      `;
-
-      const symptomsQuery = `
-        SELECT COUNT(*) as total_symptom_logs
-        FROM symptom_logs
-        WHERE user_id = $1
-      `;
-
-      const cyclesResult = await pool.query(cyclesQuery, [userId]);
-      const symptomsResult = await pool.query(symptomsQuery, [userId]);
-
-      return {
-        totalCycles: parseInt(cyclesResult.rows[0].total_cycles) || 0,
-        totalSymptomLogs: parseInt(symptomsResult.rows[0].total_symptom_logs) || 0
-      };
-    } catch (error) {
-      console.error('Error getting user stats:', error);
-      return {
-        totalCycles: 0,
-        totalSymptomLogs: 0
-      };
-    }
-  }
-
-  static async deleteUnverifiedExpiredUsers() {
-    try {
-      const query = `
-        DELETE FROM users 
-        WHERE 
-          email_verified = false 
-          AND verification_token_expires < CURRENT_TIMESTAMP
-          AND created_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'
-      `;
-      
-      const result = await pool.query(query);
-      return result.rowCount;
-    } catch (error) {
-      console.error('Error deleting expired unverified users:', error);
-      return 0;
-    }
-  }
   /**
    * Update user's OTP code and expiry
    * @param {string} userId - User ID
@@ -425,7 +282,119 @@ class User {
   }
 
   /**
-   * Reset OTP attempts (call this periodically or after successful verification)
+   * Update verification token (for backward compatibility)
+   * @param {string} userId - User ID
+   * @param {string} verificationToken - Verification token
+   * @param {Date} verificationTokenExpires - Token expiry
+   */
+  static async updateVerificationToken(userId, verificationToken, verificationTokenExpires) {
+    try {
+      const query = `
+        UPDATE users 
+        SET 
+          verification_token = $1,
+          verification_token_expires = $2,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3
+        RETURNING 
+          id, 
+          email, 
+          name,
+          email_verified
+      `;
+
+      const result = await pool.query(query, [
+        verificationToken, 
+        verificationTokenExpires, 
+        userId
+      ]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error updating verification token:', error);
+      throw error;
+    }
+  }
+
+  static async linkGoogleAccount(userId, googleId, profilePicture) {
+    try {
+      const query = `
+        UPDATE users 
+        SET 
+          google_id = $1, 
+          profile_picture = COALESCE(profile_picture, $2),
+          email_verified = true,
+          verification_token = NULL,
+          verification_token_expires = NULL,
+          otp_code = NULL,
+          otp_expires_at = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3
+        RETURNING 
+          id, 
+          email, 
+          name, 
+          date_of_birth, 
+          google_id,
+          profile_picture, 
+          account_type, 
+          preferences,
+          created_at
+      `;
+
+      const result = await pool.query(query, [googleId, profilePicture, userId]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error linking Google account:', error);
+      throw error;
+    }
+  }
+
+  static async updateLastLogin(userId) {
+    try {
+      const query = `
+        UPDATE users 
+        SET last_login = CURRENT_TIMESTAMP
+        WHERE id = $1
+      `;
+
+      await pool.query(query, [userId]);
+    } catch (error) {
+      console.error('Error updating last login:', error);
+    }
+  }
+
+  static async getStats(userId) {
+    try {
+      const cyclesQuery = `
+        SELECT COUNT(*) as total_cycles
+        FROM cycles
+        WHERE user_id = $1
+      `;
+
+      const symptomsQuery = `
+        SELECT COUNT(*) as total_symptom_logs
+        FROM symptom_logs
+        WHERE user_id = $1
+      `;
+
+      const cyclesResult = await pool.query(cyclesQuery, [userId]);
+      const symptomsResult = await pool.query(symptomsQuery, [userId]);
+
+      return {
+        totalCycles: parseInt(cyclesResult.rows[0].total_cycles) || 0,
+        totalSymptomLogs: parseInt(symptomsResult.rows[0].total_symptom_logs) || 0
+      };
+    } catch (error) {
+      console.error('Error getting user stats:', error);
+      return {
+        totalCycles: 0,
+        totalSymptomLogs: 0
+      };
+    }
+  }
+
+  /**
+   * Reset OTP attempts
    * @param {string} userId - User ID
    */
   static async resetOTPAttempts(userId) {
@@ -441,13 +410,11 @@ class User {
       await pool.query(query, [userId]);
     } catch (error) {
       console.error('Error resetting OTP attempts:', error);
-      // Don't throw - this is not critical
     }
   }
 
   /**
-   * Delete unverified users with expired OTPs
-   * Call this via cron job to clean up abandoned signups
+   * Delete expired unverified users
    */
   static async deleteExpiredUnverifiedUsers() {
     try {
@@ -455,8 +422,10 @@ class User {
         DELETE FROM users 
         WHERE 
           email_verified = false 
-          AND otp_expires_at IS NOT NULL
-          AND otp_expires_at < CURRENT_TIMESTAMP
+          AND (
+            (otp_expires_at IS NOT NULL AND otp_expires_at < CURRENT_TIMESTAMP)
+            OR (verification_token_expires IS NOT NULL AND verification_token_expires < CURRENT_TIMESTAMP)
+          )
           AND created_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'
         RETURNING email
       `;
@@ -475,7 +444,7 @@ class User {
   }
 
   /**
-   * Get user's OTP status (for debugging or admin panel)
+   * Get user's OTP status
    * @param {string} userId - User ID
    */
   static async getOTPStatus(userId) {
@@ -504,7 +473,45 @@ class User {
     }
   }
 
-}
+  /**
+   * Get user by email with all OTP fields (for auth routes)
+   * @param {string} email - User email
+   */
+  static async findByEmailWithOTP(email) {
+    try {
+      const query = `
+        SELECT 
+          id, 
+          email, 
+          password, 
+          name, 
+          date_of_birth, 
+          google_id,
+          profile_picture, 
+          account_type, 
+          preferences,
+          email_verified,
+          verification_token,
+          verification_token_expires,
+          reset_token,
+          reset_token_expires,
+          otp_code,
+          otp_expires_at,
+          otp_attempts,
+          otp_last_sent_at,
+          created_at,
+          last_login
+        FROM users 
+        WHERE LOWER(email) = LOWER($1)
+      `;
 
+      const result = await pool.query(query, [email]);
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error finding user by email with OTP:', error);
+      throw error;
+    }
+  }
+}
 
 module.exports = User;
