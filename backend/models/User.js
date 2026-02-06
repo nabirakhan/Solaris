@@ -1,9 +1,18 @@
-// File: backend/models/User.js
 const { pool } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
 class User {
-  static async create({ email, password, name, dateOfBirth, googleId, profilePicture, accountType = 'email' }) {
+  static async create({ 
+    email, 
+    password, 
+    name, 
+    dateOfBirth, 
+    googleId, 
+    profilePicture, 
+    accountType = 'email',
+    verificationToken = null,
+    verificationTokenExpires = null
+  }) {
     try {
       let hashedPassword = null;
 
@@ -22,9 +31,11 @@ class User {
           google_id, 
           profile_picture, 
           account_type,
-          email_verified
+          email_verified,
+          verification_token,
+          verification_token_expires
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING 
           id, 
           email, 
@@ -33,6 +44,7 @@ class User {
           profile_picture, 
           account_type, 
           preferences,
+          email_verified,
           created_at
       `;
 
@@ -44,7 +56,9 @@ class User {
         googleId || null,
         profilePicture || null,
         accountType,
-        accountType === 'google' // Auto-verify Google accounts
+        accountType === 'google', // Auto-verify Google accounts
+        verificationToken,
+        verificationTokenExpires
       ];
 
       const result = await pool.query(query, values);
@@ -69,6 +83,10 @@ class User {
           account_type, 
           preferences,
           email_verified,
+          verification_token,
+          verification_token_expires,
+          reset_token,
+          reset_token_expires,
           created_at,
           last_login
         FROM users 
@@ -96,6 +114,10 @@ class User {
           account_type, 
           preferences,
           email_verified,
+          verification_token,
+          verification_token_expires,
+          reset_token,
+          reset_token_expires,
           created_at,
           last_login
         FROM users 
@@ -154,7 +176,9 @@ class User {
 
       // Build dynamic update query
       Object.keys(updates).forEach(key => {
-        fields.push(`${key} = $${paramCount}`);
+        // Convert camelCase to snake_case for database
+        const dbKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        fields.push(`${dbKey} = $${paramCount}`);
         values.push(updates[key]);
         paramCount++;
       });
@@ -177,6 +201,7 @@ class User {
           profile_picture, 
           account_type, 
           preferences,
+          email_verified,
           created_at,
           updated_at
       `;
@@ -189,6 +214,60 @@ class User {
     }
   }
 
+  static async verifyEmail(userId) {
+    try {
+      const query = `
+        UPDATE users 
+        SET 
+          email_verified = true,
+          verification_token = NULL,
+          verification_token_expires = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING 
+          id, 
+          email, 
+          name, 
+          email_verified,
+          created_at
+      `;
+
+      const result = await pool.query(query, [userId]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error verifying email:', error);
+      throw error;
+    }
+  }
+
+  static async updateVerificationToken(userId, verificationToken, verificationTokenExpires) {
+    try {
+      const query = `
+        UPDATE users 
+        SET 
+          verification_token = $1,
+          verification_token_expires = $2,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3
+        RETURNING 
+          id, 
+          email, 
+          name,
+          email_verified
+      `;
+
+      const result = await pool.query(query, [
+        verificationToken, 
+        verificationTokenExpires, 
+        userId
+      ]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error updating verification token:', error);
+      throw error;
+    }
+  }
+
   static async linkGoogleAccount(userId, googleId, profilePicture) {
     try {
       const query = `
@@ -196,6 +275,9 @@ class User {
         SET 
           google_id = $1, 
           profile_picture = COALESCE(profile_picture, $2),
+          email_verified = true,
+          verification_token = NULL,
+          verification_token_expires = NULL,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = $3
         RETURNING 
@@ -260,6 +342,24 @@ class User {
         totalCycles: 0,
         totalSymptomLogs: 0
       };
+    }
+  }
+
+  static async deleteUnverifiedExpiredUsers() {
+    try {
+      const query = `
+        DELETE FROM users 
+        WHERE 
+          email_verified = false 
+          AND verification_token_expires < CURRENT_TIMESTAMP
+          AND created_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'
+      `;
+      
+      const result = await pool.query(query);
+      return result.rowCount;
+    } catch (error) {
+      console.error('Error deleting expired unverified users:', error);
+      return 0;
     }
   }
 }

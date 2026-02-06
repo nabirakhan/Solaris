@@ -162,10 +162,10 @@ class _LoginScreenState extends State<LoginScreen>
     return Hero(
       tag: 'app_logo',
       child: Container(
-        width: 120,
-        height: 120,
+        width: 140,
+        height: 140,
         decoration: BoxDecoration(
-          color: Colors.red,
+          color: Colors.white,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
