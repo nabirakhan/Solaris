@@ -84,6 +84,125 @@ class CycleProvider with ChangeNotifier {
       return false;
     }
   }
+
+  /// NEW: Delete a cycle completely
+  Future<bool> deleteCycle(String cycleId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    
+    try {
+      await _apiService.deleteCycle(cycleId);
+      
+      // Reload cycles and insights after deletion
+      await loadCycles();
+      await loadCurrentInsights();
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Error deleting cycle: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// NEW: Add a single day to a cycle
+  Future<bool> addDayToCycle({
+    required String cycleId,
+    required DateTime date,
+    required String flow,
+    String? notes,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    
+    try {
+      await _apiService.addCycleDay(
+        cycleId: cycleId,
+        date: date.toIso8601String().split('T')[0],
+        flow: flow,
+        notes: notes,
+      );
+      
+      // Reload cycles after adding day
+      await loadCycles();
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Error adding day to cycle: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// NEW: Update a specific day in a cycle
+  Future<bool> updateCycleDay({
+    required String cycleId,
+    required String dayId,
+    String? flow,
+    String? notes,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    
+    try {
+      await _apiService.updateCycleDay(
+        cycleId: cycleId,
+        dayId: dayId,
+        flow: flow,
+        notes: notes,
+      );
+      
+      // Reload cycles after updating day
+      await loadCycles();
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Error updating cycle day: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// NEW: Delete a specific day from a cycle
+  Future<bool> deleteCycleDay({
+    required String cycleId,
+    required String dayId,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    
+    try {
+      await _apiService.deleteCycleDay(
+        cycleId: cycleId,
+        dayId: dayId,
+      );
+      
+      // Reload cycles after deleting day
+      await loadCycles();
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Error deleting cycle day: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
   
   /// Load current cycle insights and predictions
   Future<void> loadCurrentInsights() async {

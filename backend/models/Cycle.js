@@ -184,6 +184,108 @@ class Cycle {
       throw error;
     }
   }
+
+  // ============================================================================
+  // CYCLE DAY MANAGEMENT (NEW)
+  // ============================================================================
+
+  static async addDay({ cycleId, date, flow = 'medium', notes }) {
+    try {
+      const sql = `
+        INSERT INTO cycle_days (cycle_id, date, flow, notes)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (cycle_id, date) 
+        DO UPDATE SET flow = $3, notes = $4, updated_at = CURRENT_TIMESTAMP
+        RETURNING id, cycle_id, date, flow, notes, created_at, updated_at
+      `;
+
+      const values = [cycleId, date, flow, notes || null];
+      const result = await query(sql, values);
+      return result.rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async updateDay(dayId, updates) {
+    try {
+      const allowedFields = ['flow', 'notes'];
+      const fields = [];
+      const values = [];
+      let paramCount = 1;
+
+      Object.keys(updates).forEach(key => {
+        if (allowedFields.includes(key) && updates[key] !== undefined) {
+          fields.push(`${key} = $${paramCount}`);
+          values.push(updates[key]);
+          paramCount++;
+        }
+      });
+
+      if (fields.length === 0) {
+        throw new Error('No valid fields to update');
+      }
+
+      values.push(dayId);
+      const sql = `
+        UPDATE cycle_days
+        SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $${paramCount}
+        RETURNING id, cycle_id, date, flow, notes, created_at, updated_at
+      `;
+
+      const result = await query(sql, values);
+      return result.rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async deleteDay(dayId) {
+    try {
+      const sql = `
+        DELETE FROM cycle_days
+        WHERE id = $1
+        RETURNING id
+      `;
+
+      const result = await query(sql, [dayId]);
+      return result.rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getDays(cycleId) {
+    try {
+      const sql = `
+        SELECT id, cycle_id, date, flow, notes, created_at, updated_at
+        FROM cycle_days
+        WHERE cycle_id = $1
+        ORDER BY date ASC
+      `;
+
+      const result = await query(sql, [cycleId]);
+      return result.rows;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async getDayByDate(cycleId, date) {
+    try {
+      const sql = `
+        SELECT id, cycle_id, date, flow, notes, created_at, updated_at
+        FROM cycle_days
+        WHERE cycle_id = $1 AND date = $2
+      `;
+
+      const result = await query(sql, [cycleId, date]);
+      return result.rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 module.exports = Cycle;

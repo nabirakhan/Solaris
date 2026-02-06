@@ -95,8 +95,8 @@ class ApiService {
     required String name,
     String? photoUrl,
     required String googleId,
-    required String idToken,      // ADD THIS - CRITICAL!
-    String? accessToken,          // Optional but recommended
+    required String idToken,
+    String? accessToken,
   }) async {
     print('🔍 [API DEBUG] Sending Google sign-in to backend...');
     print('📧 Email: $email');
@@ -112,7 +112,7 @@ class ApiService {
         'name': name,
         'photoUrl': photoUrl,
         'googleId': googleId,
-        'idToken': idToken,      // ADD THIS LINE - BACKEND NEEDS IT!
+        'idToken': idToken,
         'accessToken': accessToken,
       }),
     );
@@ -169,7 +169,7 @@ class ApiService {
         await http.MultipartFile.fromPath(
           'picture',
           imageFile.path,
-          filename: 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg', // ✅ Added filename
+          filename: 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg',
         ),
       );
       
@@ -180,7 +180,6 @@ class ApiService {
       final response = await http.Response.fromStream(streamedResponse);
       print('📸 Response body: ${response.body}');
       
-      // ✅ Check for both 200 and 201 status codes
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         print('✅ Upload successful! Data: $data');
@@ -192,10 +191,11 @@ class ApiService {
       }
     } catch (e, stackTrace) {
       print('❌ Upload error: $e');
-      print('❌ Stack trace: $stackTrace'); // ✅ Added stack trace
+      print('❌ Stack trace: $stackTrace');
       return null;
     }
   }
+  
   // ============================================================================
   // CYCLES
   // ============================================================================
@@ -257,6 +257,83 @@ class ApiService {
       return jsonDecode(response.body);
     } else {
       throw Exception('Failed to update cycle');
+    }
+  }
+
+  /// NEW: Delete a cycle
+  Future<void> deleteCycle(String cycleId) async {
+    final response = await http.delete(
+      Uri.parse('${AppConstants.apiBaseUrl}/cycles/$cycleId'),
+      headers: await _getHeaders(),
+    );
+    
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to delete cycle');
+    }
+  }
+
+  /// NEW: Add a single day to a cycle (manual day logging)
+  Future<Map<String, dynamic>> addCycleDay({
+    required String cycleId,
+    required String date,
+    required String flow,
+    String? notes,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.apiBaseUrl}/cycles/$cycleId/days'),
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        'date': date,
+        'flow': flow,
+        'notes': notes,
+      }),
+    );
+    
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to add cycle day');
+    }
+  }
+
+  /// NEW: Update a specific day in a cycle
+  Future<Map<String, dynamic>> updateCycleDay({
+    required String cycleId,
+    required String dayId,
+    String? flow,
+    String? notes,
+  }) async {
+    final response = await http.put(
+      Uri.parse('${AppConstants.apiBaseUrl}/cycles/$cycleId/days/$dayId'),
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        if (flow != null) 'flow': flow,
+        if (notes != null) 'notes': notes,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to update cycle day');
+    }
+  }
+
+  /// NEW: Delete a specific day from a cycle
+  Future<void> deleteCycleDay({
+    required String cycleId,
+    required String dayId,
+  }) async {
+    final response = await http.delete(
+      Uri.parse('${AppConstants.apiBaseUrl}/cycles/$cycleId/days/$dayId'),
+      headers: await _getHeaders(),
+    );
+    
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to delete cycle day');
     }
   }
   
