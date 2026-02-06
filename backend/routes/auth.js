@@ -34,31 +34,19 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024 // 5MB limit
   },
   fileFilter: (req, file, cb) => {
-    console.log('📸 MULTER: File upload attempt');
-    console.log('📸 File details:', {
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      fieldname: file.fieldname
-    });
-
     // Accept files that are images OR have image extensions
     const isImageMimeType = file.mimetype && file.mimetype.startsWith('image/');
     const hasImageExtension = /\.(jpe?g|png|gif|webp)$/i.test(file.originalname);
-    
-    console.log('📸 isImageMimeType:', isImageMimeType);
-    console.log('📸 hasImageExtension:', hasImageExtension);
 
     if (isImageMimeType || hasImageExtension) {
-      console.log('✅ Accepting file');
       return cb(null, true);
     } else {
-      console.log('❌ Rejecting file');
       cb(new Error('Only image files are allowed!'));
     }
   }
 });
 
-// Add this after the imports, before other routes
+// Endpoints documentation
 router.get('/', (req, res) => {
   res.json({
     service: 'Authentication API',
@@ -77,6 +65,7 @@ router.get('/', (req, res) => {
   });
 });
 
+// Google OAuth Strategy
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -84,7 +73,6 @@ passport.use(new GoogleStrategy({
 },
   async (accessToken, refreshToken, profile, done) => {
     try {
-      // Check if user already exists with Google ID
       let user = await User.findByGoogleId(profile.id);
 
       if (user) {
@@ -92,11 +80,9 @@ passport.use(new GoogleStrategy({
         return done(null, user);
       }
 
-      // Check if user exists with same email
       user = await User.findByEmail(profile.emails[0].value);
 
       if (user) {
-        // Link Google account to existing user
         user = await User.linkGoogleAccount(
           user.id,
           profile.id,
@@ -106,7 +92,6 @@ passport.use(new GoogleStrategy({
         return done(null, user);
       }
 
-      // Create new user
       user = await User.create({
         googleId: profile.id,
         email: profile.emails[0].value,
@@ -136,7 +121,7 @@ const formatUserResponse = (user) => {
     id: user.id,
     email: user.email,
     name: user.name,
-    photoUrl: user.profile_picture, // ✅ Changed from profilePicture to photoUrl for consistency with frontend
+    photoUrl: user.profile_picture,
     profilePicture: user.profile_picture,
     accountType: user.account_type,
     dateOfBirth: user.date_of_birth,
@@ -186,7 +171,6 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validation
     if (!email || !password) {
       return res.status(400).json({ error: 'Please provide email and password' });
     }
@@ -196,7 +180,6 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Check if user signed up with Google
     if (user.account_type === 'google' && !user.password) {
       return res.status(401).json({
         error: 'This account uses Google Sign-In. Please login with Google.'
@@ -237,10 +220,7 @@ router.get('/google/callback',
   }),
   (req, res) => {
     try {
-      // Generate JWT token
       const token = generateToken(req.user.id);
-
-      // Redirect to frontend with token
       res.redirect(`${process.env.FRONTEND_URL}/auth-success?token=${token}`);
     } catch (error) {
       console.error('Google callback error:', error);
@@ -257,18 +237,14 @@ router.post('/google/mobile', async (req, res) => {
       return res.status(400).json({ error: 'Invalid Google authentication data' });
     }
 
-    // Check if user exists with Google ID
     let user = await User.findByGoogleId(googleId);
 
     if (!user) {
-      // Check if user exists with email
       user = await User.findByEmail(email);
 
       if (user) {
-        // Link Google account
         user = await User.linkGoogleAccount(user.id, googleId, photoUrl);
       } else {
-        // Create new user
         user = await User.create({
           email,
           name,
@@ -335,7 +311,7 @@ router.put('/profile', auth, async (req, res) => {
   }
 });
 
-// ✅ NEW: Profile picture upload endpoint
+// Profile picture upload endpoint
 router.post('/profile/picture', auth, upload.single('picture'), async (req, res) => {
   try {
     console.log('📸 Profile picture upload request received');
@@ -346,14 +322,18 @@ router.post('/profile/picture', auth, upload.single('picture'), async (req, res)
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    // Get the relative URL for the uploaded file
-    const imageUrl = `/uploads/profiles/${req.file.filename}`;
+    // Store relative URL in database
+    const relativeUrl = `/uploads/profiles/${req.file.filename}`;
     
-    console.log('📸 Image URL:', imageUrl);
+    // Create full URL for response
+    const fullImageUrl = `https://solaris-vhc8.onrender.com${relativeUrl}`;
+    
+    console.log('📸 Relative URL:', relativeUrl);
+    console.log('📸 Full URL:', fullImageUrl);
 
-    // Update user's profile picture in database
+    // Update user's profile picture in database with relative URL
     const user = await User.update(req.userId, {
-      profile_picture: imageUrl
+      profile_picture: relativeUrl
     });
 
     if (!user) {
@@ -364,10 +344,16 @@ router.post('/profile/picture', auth, upload.single('picture'), async (req, res)
 
     console.log('✅ Profile picture updated successfully');
 
+    // Return full URL in response
     res.status(200).json({
+      success: true,
       message: 'Profile picture uploaded successfully',
-      photoUrl: imageUrl,
-      user: formatUserResponse(user)
+      photoUrl: fullImageUrl,
+      user: {
+        ...formatUserResponse(user),
+        photoUrl: fullImageUrl,
+        profilePicture: fullImageUrl
+      }
     });
 
   } catch (error) {
@@ -392,7 +378,6 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
-// Logout (JWT is stateless, but included for completeness)
 router.post('/logout', auth, async (req, res) => {
   try {
     res.json({ message: 'Logged out successfully' });
