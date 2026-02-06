@@ -1,5 +1,5 @@
-// File: frontend/lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../config/constants.dart';
@@ -16,10 +16,10 @@ class _LoginScreenState extends State<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   bool _obscurePassword = true;
   bool _isLoginMode = true;
-  
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -27,12 +27,12 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       vsync: this,
       duration: AppConstants.slowAnimation,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -40,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen>
       parent: _animationController,
       curve: Curves.easeIn,
     ));
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
@@ -48,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen>
       parent: _animationController,
       curve: Curves.easeOutCubic,
     ));
-    
+
     _animationController.forward();
   }
 
@@ -72,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     bool success;
     if (_isLoginMode) {
       success = await authProvider.login(
@@ -96,7 +96,8 @@ class _LoginScreenState extends State<LoginScreen>
           backgroundColor: AppConstants.errorColor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
+            borderRadius:
+                BorderRadius.circular(AppConstants.borderRadiusMedium),
           ),
         ),
       );
@@ -105,9 +106,9 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _handleGoogleSignIn() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     final success = await authProvider.signInWithGoogle();
-    
+
     if (success && mounted) {
       Navigator.of(context).pushReplacementNamed('/home');
     } else if (mounted && authProvider.errorMessage != null) {
@@ -117,7 +118,8 @@ class _LoginScreenState extends State<LoginScreen>
           backgroundColor: AppConstants.errorColor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
+            borderRadius:
+                BorderRadius.circular(AppConstants.borderRadiusMedium),
           ),
         ),
       );
@@ -143,9 +145,7 @@ class _LoginScreenState extends State<LoginScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _buildLogo(),
-                      
                       const SizedBox(height: AppConstants.paddingXLarge),
-                      
                       _buildLoginCard(),
                     ],
                   ),
@@ -165,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen>
         width: 120,
         height: 120,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.red,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
@@ -175,11 +175,96 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ],
         ),
-        child: Icon(
-          Icons.favorite,
-          size: AppConstants.iconSizeXLarge * 1.5,
-          color: AppConstants.primaryColor,
+        child: FutureBuilder<Widget>(
+          future: _loadLogoImage(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                ),
+              );
+            } else if (snapshot.hasError) {
+              print('❌ Logo Error: ${snapshot.error}');
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error,
+                      color: Colors.white,
+                      size: 40,
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      'Image Error\nCheck Console',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
+            } else {
+              return snapshot.data ?? _buildFallbackIcon();
+            }
+          },
         ),
+      ),
+    );
+  }
+
+  Future<Widget> _loadLogoImage() async {
+    try {
+      // Try to load the image
+      final image = AssetImage('assets/icons/solaris_logo.png');
+
+      // Check if asset bundle can load it
+      try {
+        await rootBundle.load('assets/icons/solaris_logo.png');
+        print('✅ Asset loaded successfully from bundle');
+      } catch (e) {
+        print('❌ Bundle error: $e');
+        throw Exception(
+            'Asset not found in bundle: assets/icons/solaris_logo.png');
+      }
+
+      return Padding(
+        padding: const EdgeInsets.all(15),
+        child: ClipOval(
+          child: Image(
+            image: image,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+    } catch (e) {
+      print('❌ Image loading error: $e');
+      rethrow;
+    }
+  }
+
+  Widget _buildFallbackIcon() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.favorite,
+            size: AppConstants.iconSizeXLarge * 1.5,
+            color: Colors.white,
+          ),
+          SizedBox(height: 5),
+          Text(
+            'Using Fallback Icon',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -203,31 +288,21 @@ class _LoginScreenState extends State<LoginScreen>
                 style: AppConstants.headingMedium,
                 textAlign: TextAlign.center,
               ),
-              
               const SizedBox(height: AppConstants.paddingSmall),
-              
               Text(
-                _isLoginMode 
+                _isLoginMode
                     ? 'Sign in to continue tracking'
                     : 'Join Solaris to start your journey',
                 style: AppConstants.bodyMedium,
                 textAlign: TextAlign.center,
               ),
-              
               const SizedBox(height: AppConstants.paddingLarge),
-              
               _buildEmailField(),
-              
               const SizedBox(height: AppConstants.paddingMedium),
-              
               _buildPasswordField(),
-              
               const SizedBox(height: AppConstants.paddingLarge),
-              
               _buildSubmitButton(),
-              
               const SizedBox(height: AppConstants.paddingMedium),
-              
               Row(
                 children: [
                   const Expanded(child: Divider()),
@@ -243,13 +318,9 @@ class _LoginScreenState extends State<LoginScreen>
                   const Expanded(child: Divider()),
                 ],
               ),
-              
               const SizedBox(height: AppConstants.paddingMedium),
-              
               _buildGoogleButton(),
-              
               const SizedBox(height: AppConstants.paddingLarge),
-              
               _buildToggleButton(),
             ],
           ),
@@ -292,7 +363,9 @@ class _LoginScreenState extends State<LoginScreen>
         prefixIcon: const Icon(Icons.lock_outlined),
         suffixIcon: IconButton(
           icon: Icon(
-            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            _obscurePassword
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
           ),
           onPressed: () {
             setState(() {
@@ -331,7 +404,8 @@ class _LoginScreenState extends State<LoginScreen>
               foregroundColor: Colors.white,
               elevation: AppConstants.elevationMedium,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
+                borderRadius:
+                    BorderRadius.circular(AppConstants.borderRadiusMedium),
               ),
             ),
             child: authProvider.isLoading
@@ -364,7 +438,8 @@ class _LoginScreenState extends State<LoginScreen>
               color: AppConstants.primaryColor.withOpacity(0.5),
             ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
+              borderRadius:
+                  BorderRadius.circular(AppConstants.borderRadiusMedium),
             ),
           ),
           icon: Image.asset(

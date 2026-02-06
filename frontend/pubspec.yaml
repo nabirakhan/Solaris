@@ -81,6 +81,8 @@ flutter:
   # ASSETS
   # ============================================================================
   assets:
+    - assets/icons/solaris_logo.png
+    - assets/images/google_logo.png
     - assets/images/
     - assets/animations/
     - assets/icons/

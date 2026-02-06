@@ -1,4 +1,3 @@
-// File: lib/screens/today_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -23,8 +22,7 @@ class _TodayScreenState extends State<TodayScreen>
       PageController(viewportFraction: 0.85);
   int _currentRecommendationPage = 0;
   bool _isRefreshing = false;
-  
-  // ✅ FIX #1: Track expanded state for each recommendation card
+
   Map<int, bool> _expandedCards = {};
 
   @override
@@ -72,10 +70,10 @@ class _TodayScreenState extends State<TodayScreen>
 
   Future<void> _refreshInsights() async {
     setState(() => _isRefreshing = true);
-    
+
     final cycleProvider = Provider.of<CycleProvider>(context, listen: false);
     final success = await cycleProvider.requestAIAnalysis();
-    
+
     setState(() => _isRefreshing = false);
 
     if (success) {
@@ -84,7 +82,8 @@ class _TodayScreenState extends State<TodayScreen>
           content: const Text('AI insights updated successfully! ✨'),
           backgroundColor: AppTheme.successColor,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     } else {
@@ -93,7 +92,8 @@ class _TodayScreenState extends State<TodayScreen>
           content: Text(cycleProvider.error ?? 'Failed to update insights'),
           backgroundColor: AppTheme.errorColor,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -156,7 +156,9 @@ class _TodayScreenState extends State<TodayScreen>
                           ),
                           SizedBox(height: 2),
                           Text(
-                            user != null ? 'Hi, ${user['name']}!' : 'Today\'s Overview',
+                            user != null
+                                ? 'Hi, ${user['name']}!'
+                                : 'Today\'s Overview',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -168,7 +170,6 @@ class _TodayScreenState extends State<TodayScreen>
                     ),
                   ),
                 ),
-
                 SliverToBoxAdapter(
                   child: Column(
                     children: [
@@ -177,7 +178,8 @@ class _TodayScreenState extends State<TodayScreen>
                       _buildPhaseCard()
                           .animate()
                           .fadeIn(duration: 600.ms, delay: 200.ms)
-                          .slideY(begin: 0.3, end: 0, curve: Curves.easeOutCubic)
+                          .slideY(
+                              begin: 0.3, end: 0, curve: Curves.easeOutCubic)
                           .shimmer(duration: 1500.ms, delay: 400.ms),
 
                       SizedBox(height: 24),
@@ -186,14 +188,17 @@ class _TodayScreenState extends State<TodayScreen>
                       _buildAIInsightsSection()
                           .animate()
                           .fadeIn(duration: 600.ms, delay: 300.ms)
-                          .slideY(begin: 0.3, end: 0, curve: Curves.easeOutCubic),
+                          .slideY(
+                              begin: 0.3, end: 0, curve: Curves.easeOutCubic),
 
                       SizedBox(height: 24),
 
                       _buildPandaSection()
                           .animate()
                           .fadeIn(duration: 600.ms, delay: 400.ms)
-                          .scale(begin: Offset(0.8, 0.8), curve: Curves.elasticOut),
+                          .scale(
+                              begin: Offset(0.8, 0.8),
+                              curve: Curves.elasticOut),
 
                       SizedBox(height: 24),
 
@@ -239,24 +244,26 @@ class _TodayScreenState extends State<TodayScreen>
         final phase = provider.currentPhase;
         // ✅ FIX #4: Calculate days since start properly, default to 1 instead of 0
         int daysSinceStart = provider.daysSinceStart;
-        
+
         // If daysSinceStart is 0 and we have an active cycle, calculate manually
         if (daysSinceStart == 0 && provider.hasActiveCycle) {
           try {
             final currentCycle = provider.currentCycle;
             if (currentCycle != null) {
-              final startDate = currentCycle['startDate'] ?? currentCycle['start_date'];
+              final startDate =
+                  currentCycle['startDate'] ?? currentCycle['start_date'];
               if (startDate != null) {
                 final start = DateTime.parse(startDate.toString());
                 final now = DateTime.now();
-                daysSinceStart = now.difference(start).inDays + 1; // +1 because day 1 is the start day
+                daysSinceStart = now.difference(start).inDays +
+                    1; // +1 because day 1 is the start day
               }
             }
           } catch (e) {
             daysSinceStart = 1; // Default to day 1 if calculation fails
           }
         }
-        
+
         // Ensure minimum day is 1 if there's an active cycle
         if (provider.hasActiveCycle && daysSinceStart < 1) {
           daysSinceStart = 1;
@@ -346,14 +353,17 @@ class _TodayScreenState extends State<TodayScreen>
     return Consumer<CycleProvider>(
       builder: (context, provider, child) {
         final phase = provider.currentPhase;
-        
+
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: 20),
           child: GlassCard(
             margin: EdgeInsets.zero,
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12), // ✅ FIX #1: Reduced vertical padding
+            padding: EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12), // ✅ FIX #1: Reduced vertical padding
             child: Column(
-              mainAxisSize: MainAxisSize.min, // ✅ FIX #1: Don't take more space than needed
+              mainAxisSize: MainAxisSize
+                  .min, // ✅ FIX #1: Don't take more space than needed
               children: [
                 // ✅ FIX #2: Use adorable Cuterus mascot
                 CuterusMascot(phase: phase),
@@ -427,7 +437,8 @@ class _TodayScreenState extends State<TodayScreen>
     );
   }
 
-  Widget _buildStatCard(String value, String label, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String value, String label, IconData icon, Color color) {
     return GlassCard(
       margin: EdgeInsets.zero,
       padding: EdgeInsets.all(16),
@@ -502,7 +513,8 @@ class _TodayScreenState extends State<TodayScreen>
             ),
             SizedBox(height: 16),
             SizedBox(
-              height: 165, // ✅ FIX #1: Reduced from 200 to 165 for more compact cards
+              height:
+                  165, // ✅ FIX #1: Reduced from 200 to 165 for more compact cards
               child: PageView.builder(
                 controller: _recommendationsController,
                 itemCount: recommendations.length,
@@ -544,7 +556,7 @@ class _TodayScreenState extends State<TodayScreen>
   ) {
     // ✅ FIX #1: Check if card is expanded
     final isExpanded = _expandedCards[index] ?? false;
-    
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 8),
       child: GestureDetector(
@@ -568,7 +580,8 @@ class _TodayScreenState extends State<TodayScreen>
                     Container(
                       padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: (recommendation['color'] as Color).withOpacity(0.2),
+                        color:
+                            (recommendation['color'] as Color).withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -611,8 +624,8 @@ class _TodayScreenState extends State<TodayScreen>
                                 height: 1.4,
                               ),
                             ),
-                            crossFadeState: isExpanded 
-                                ? CrossFadeState.showSecond 
+                            crossFadeState: isExpanded
+                                ? CrossFadeState.showSecond
                                 : CrossFadeState.showFirst,
                             duration: Duration(milliseconds: 200),
                           ),
@@ -625,7 +638,9 @@ class _TodayScreenState extends State<TodayScreen>
                 SizedBox(height: 8),
                 Center(
                   child: Icon(
-                    isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
                     size: 20,
                     color: AppTheme.textGray.withOpacity(0.5),
                   ),
@@ -670,10 +685,7 @@ class _TodayScreenState extends State<TodayScreen>
         );
       case 'luteal':
         return LinearGradient(
-          colors: [
-            AppTheme.lutealPhase,
-            AppTheme.lutealPhase.withOpacity(0.7)
-          ],
+          colors: [AppTheme.lutealPhase, AppTheme.lutealPhase.withOpacity(0.7)],
         );
       default:
         return LinearGradient(

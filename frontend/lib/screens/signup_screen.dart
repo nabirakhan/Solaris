@@ -1,4 +1,3 @@
-// File: frontend/lib/screens/signup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -42,7 +41,7 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     final success = await authProvider.signup(
       email: _emailController.text.trim(),
       password: _passwordController.text,
@@ -63,7 +62,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _handleGoogleSignIn() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     final success = await authProvider.signInWithGoogle();
 
     if (success && mounted) {
@@ -103,7 +102,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   color: AppTheme.primaryPink,
                 ),
                 SizedBox(height: 16),
-                
                 Text(
                   'Create Account',
                   style: TextStyle(
@@ -121,7 +119,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 SizedBox(height: 32),
-                
                 Form(
                   key: _formKey,
                   child: Column(
@@ -140,7 +137,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         },
                       ),
                       SizedBox(height: 16),
-                      
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -159,7 +155,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         },
                       ),
                       SizedBox(height: 16),
-                      
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
@@ -190,7 +185,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         },
                       ),
                       SizedBox(height: 16),
-                      
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
@@ -205,7 +199,8 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                             onPressed: () {
                               setState(() {
-                                _obscureConfirmPassword = !_obscureConfirmPassword;
+                                _obscureConfirmPassword =
+                                    !_obscureConfirmPassword;
                               });
                             },
                           ),
@@ -218,7 +213,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         },
                       ),
                       SizedBox(height: 24),
-                      
                       Consumer<AuthProvider>(
                         builder: (context, auth, _) {
                           if (auth.isLoading) {
@@ -228,7 +222,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               ),
                             );
                           }
-                          
+
                           return SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
@@ -244,9 +238,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ],
                   ),
                 ),
-                
                 SizedBox(height: 24),
-                
                 Row(
                   children: [
                     Expanded(child: Divider()),
@@ -260,15 +252,13 @@ class _SignupScreenState extends State<SignupScreen> {
                     Expanded(child: Divider()),
                   ],
                 ),
-                
                 SizedBox(height: 24),
-                
                 Consumer<AuthProvider>(
                   builder: (context, auth, _) {
                     if (auth.isLoading) {
                       return SizedBox.shrink();
                     }
-                    
+
                     return SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
@@ -287,9 +277,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     );
                   },
                 ),
-                
                 SizedBox(height: 16),
-                
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
