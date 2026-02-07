@@ -254,92 +254,92 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
     final firstDayOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
     final lastDayOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
     final daysInMonth = lastDayOfMonth.day;
-    final startWeekday = firstDayOfMonth.weekday % 7;
+    final firstWeekday = firstDayOfMonth.weekday % 7;
     
     List<Widget> dayWidgets = [];
     
-    for (int i = 0; i < startWeekday; i++) {
+    for (int i = 0; i < firstWeekday; i++) {
       dayWidgets.add(Expanded(child: SizedBox()));
     }
     
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_selectedMonth.year, _selectedMonth.month, day);
-      dayWidgets.add(_buildDayCell(day, date, provider));
-    }
-    
-    final remainingCells = (7 - (dayWidgets.length % 7)) % 7;
-    for (int i = 0; i < remainingCells; i++) {
-      dayWidgets.add(Expanded(child: SizedBox()));
-    }
-    
-    List<Widget> rows = [];
-    for (int i = 0; i < dayWidgets.length; i += 7) {
-      final rowWidgets = dayWidgets.skip(i).take(7).toList();
-      rows.add(
-        Padding(
-          padding: EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            children: rowWidgets,
+      final isPeriod = _isPeriodDay(provider, date);
+      final isCurrentDay = _isToday(date);
+      
+      dayWidgets.add(
+        Expanded(
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: Container(
+              margin: EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: isPeriod 
+                  ? AppTheme.primaryPink.withOpacity(0.2)
+                  : Colors.transparent,
+                shape: BoxShape.circle,
+                border: isCurrentDay 
+                  ? Border.all(color: AppTheme.primaryPink, width: 2)
+                  : null,
+              ),
+              child: Center(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Text(
+                      '$day',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: isCurrentDay ? FontWeight.bold : FontWeight.normal,
+                        color: isPeriod 
+                          ? AppTheme.primaryPink
+                          : isCurrentDay
+                            ? AppTheme.primaryPink
+                            : AppTheme.textDark,
+                      ),
+                    ),
+                    if (isPeriod && isCurrentDay)
+                      Positioned(
+                        bottom: 2,
+                        child: Container(
+                          width: 4,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryPink,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       );
     }
     
-    return Column(children: rows);
-  }
-
-  Widget _buildDayCell(int day, DateTime date, CycleProvider provider) {
-    final isPeriodDay = _isPeriodDay(provider, date);
-    final isToday = _isToday(date);
-    final index = day - 1;
-    
-    return Expanded(
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: Container(
-          margin: EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            gradient: isPeriodDay
-                ? LinearGradient(
-                    colors: [
-                      AppTheme.primaryPink,
-                      AppTheme.primaryPink.withOpacity(0.8),
-                    ],
-                  )
-                : null,
-            color: isToday && !isPeriodDay
-                ? AppTheme.primaryPink.withOpacity(0.1)
-                : null,
-            borderRadius: BorderRadius.circular(10),
-            border: isToday
-                ? Border.all(color: AppTheme.primaryPink, width: 2)
-                : null,
-          ),
-          child: Center(
-            child: Text(
-              '$day',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isPeriodDay || isToday ? FontWeight.bold : FontWeight.normal,
-                color: isPeriodDay 
-                  ? Colors.white 
-                  : (isToday ? AppTheme.primaryPink : AppTheme.textDark),
-              ),
-            ),
-          ),
-        ),
+    return Column(
+      children: List.generate(
+        (dayWidgets.length / 7).ceil(),
+        (weekIndex) {
+          final startIndex = weekIndex * 7;
+          final endIndex = (startIndex + 7).clamp(0, dayWidgets.length);
+          
+          return Row(
+            children: dayWidgets.sublist(startIndex, endIndex),
+          );
+        },
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: Duration(milliseconds: index * 20));
+    );
   }
 
   Widget _buildCycleHistory() {
     return Consumer<CycleProvider>(
       builder: (context, provider, child) {
-        if (provider.cycles.isEmpty) {
-          return _buildEmptyState();
-        }
+        final cycles = provider.cycles;
         
-        final validCycles = provider.cycles.where((cycle) {
+        final validCycles = cycles.where((cycle) {
           final startDate = cycle['start_date'] ?? cycle['startDate'];
           return startDate != null && startDate.toString().isNotEmpty;
         }).toList();
@@ -359,7 +359,7 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
                   Text(
                     'Cycle History',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textDark,
                     ),
@@ -404,9 +404,8 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
         ? DateTime.parse(endDateString) 
         : null;
       
-      final length = cycle['cycle_length'] ?? cycle['cycleLength'] ?? (endDate != null 
-        ? endDate.difference(startDate).inDays + 1 
-        : null);
+      // ✅ FIX: Use period_length instead of cycle_length for the display
+      final periodLength = cycle['period_length'] ?? cycle['periodLength'];
       
       return Padding(
         padding: EdgeInsets.only(bottom: 16),
@@ -419,6 +418,7 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
             padding: EdgeInsets.all(20),
             child: Row(
               children: [
+                // ✅ FIX: Always show cycle icon instead of numbers
                 Container(
                   width: 60,
                   height: 60,
@@ -434,20 +434,11 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
                     ],
                   ),
                   child: Center(
-                    child: length != null
-                      ? Text(
-                          '$length',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Icon(
-                          Icons.autorenew,
-                          color: Colors.white,
-                          size: 28,
-                        ),
+                    child: Icon(
+                      Icons.calendar_month,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
                 ),
                 SizedBox(width: 16),
