@@ -207,22 +207,44 @@ class _ProfileScreenState extends State<ProfileScreen>
 
                             await auth.refreshUserData();
 
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Profile picture updated! ✨'),
-                                backgroundColor: AppTheme.successColor,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                            // ✅ FIXED: Check mounted before showing SnackBar
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Profile picture updated! ✨'),
+                                  backgroundColor: AppTheme.successColor,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
-                              ),
-                            );
+                              );
+                            }
                           } else if (mounted) {
                             print('❌ Profile picture upload failed');
+                            // ✅ FIXED: Check mounted before showing SnackBar
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content:
+                                      Text('Failed to update profile picture'),
+                                  backgroundColor: AppTheme.errorColor,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        } catch (error) {
+                          if (mounted) Navigator.of(context).pop();
+                          print('❌ Error uploading profile picture: $error');
+                          // ✅ FIXED: Check mounted before showing SnackBar
+                          if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content:
-                                    Text('Failed to update profile picture'),
+                                content: Text('Error updating profile picture'),
                                 backgroundColor: AppTheme.errorColor,
                                 behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(
@@ -231,19 +253,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                               ),
                             );
                           }
-                        } catch (error) {
-                          if (mounted) Navigator.of(context).pop();
-                          print('❌ Error uploading profile picture: $error');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error updating profile picture'),
-                              backgroundColor: AppTheme.errorColor,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          );
                         }
                       },
                       size: 120,
