@@ -250,7 +250,7 @@ class ApiService {
   // PERIOD DAYS
   // ============================================================================
   
-  Future<List<dynamic>> getPeriodDays() async {
+  Future<Map<String, dynamic>> getPeriodDays() async {
     final response = await http.get(
       Uri.parse('${AppConstants.apiBaseUrl}/period-days'),
       headers: await _getHeaders(),
@@ -258,7 +258,7 @@ class ApiService {
     
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data['periodDays'] ?? [];
+      return data;
     } else {
       throw Exception('Failed to load period days');
     }
@@ -690,7 +690,8 @@ class ApiService {
   // ============================================================================
   
   Future<void> deleteAllUserData() async {
-    final periodDays = await getPeriodDays();
+    final response = await getPeriodDays();
+    final periodDays = response['periodDays'] as List<dynamic>;
     for (var day in periodDays) {
       await deletePeriodDay(day['id'].toString());
     }

@@ -278,7 +278,8 @@ class CycleProvider with ChangeNotifier {
     notifyListeners();
     
     try {
-      _periodDays = await _apiService.getPeriodDays();
+      final response = await _apiService.getPeriodDays();
+      _periodDays = response['periodDays'] ?? [];
       _error = null;
     } catch (e) {
       _error = 'Error loading period days: $e';
