@@ -33,7 +33,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Log a single period day
+// ✅ FIX: Changed to upsert logic - update if exists, insert if not
 router.post('/', auth, async (req, res) => {
   try {
     const { date, flow, notes } = req.body;
@@ -51,25 +51,42 @@ router.post('/', auth, async (req, res) => {
     `;
     const existing = await pool.query(checkQuery, [req.userId, date]);
     
+    let result;
+    
     if (existing.rows.length > 0) {
-      return res.status(400).json({ 
-        error: 'Period day already logged for this date. Use update instead.' 
-      });
+      // ✅ FIX: Update existing instead of throwing error
+      const updateQuery = `
+        UPDATE period_days 
+        SET flow = $1, notes = $2, updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = $3 AND date = $4
+        RETURNING id, user_id, date, flow, notes, created_at, updated_at
+      `;
+      
+      result = await pool.query(updateQuery, [
+        flow,
+        notes || null,
+        req.userId,
+        date
+      ]);
+      
+      console.log(`✅ Updated existing period day for ${date}`);
+    } else {
+      // Insert new period day
+      const insertQuery = `
+        INSERT INTO period_days (user_id, date, flow, notes)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, user_id, date, flow, notes, created_at, updated_at
+      `;
+      
+      result = await pool.query(insertQuery, [
+        req.userId,
+        date,
+        flow,
+        notes || null
+      ]);
+      
+      console.log(`✅ Inserted new period day for ${date}`);
     }
-    
-    // Insert new period day
-    const insertQuery = `
-      INSERT INTO period_days (user_id, date, flow, notes)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, user_id, date, flow, notes, created_at, updated_at
-    `;
-    
-    const result = await pool.query(insertQuery, [
-      req.userId,
-      date,
-      flow,
-      notes || null
-    ]);
     
     // Update or create cycle
     await updateCyclesFromPeriodDays(req.userId);
