@@ -1,4 +1,3 @@
-// File: lib/screens/profile_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -19,19 +18,21 @@ class ProfileScreen extends StatefulWidget {
   _ProfileScreenState createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProviderStateMixin {
+class _ProfileScreenState extends State<ProfileScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _shimmerController;
   late Animation<double> _shimmerAnimation;
+  GlobalKey _profilePicKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    
+
     _shimmerController = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: 2000),
     )..repeat();
-    
+
     _shimmerAnimation = Tween<double>(
       begin: -2.0,
       end: 2.0,
@@ -39,7 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       parent: _shimmerController,
       curve: Curves.easeInOut,
     ));
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<HealthProvider>(context, listen: false).loadHealthMetrics();
     });
@@ -68,38 +69,29 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             physics: BouncingScrollPhysics(),
             slivers: [
               _buildHeader(),
-              
               SliverToBoxAdapter(
                 child: Column(
                   children: [
                     SizedBox(height: 20),
-                    
                     _buildProfileCard()
-                      .animate()
-                      .fadeIn(duration: 600.ms, delay: 200.ms)
-                      .slideY(begin: -0.3, curve: Curves.easeOutCubic),
-                    
+                        .animate()
+                        .fadeIn(duration: 600.ms, delay: 200.ms)
+                        .slideY(begin: -0.3, curve: Curves.easeOutCubic),
                     SizedBox(height: 24),
-                    
                     _buildHealthStats()
-                      .animate()
-                      .fadeIn(duration: 600.ms, delay: 400.ms)
-                      .scale(begin: Offset(0.9, 0.9)),
-                    
+                        .animate()
+                        .fadeIn(duration: 600.ms, delay: 400.ms)
+                        .scale(begin: Offset(0.9, 0.9)),
                     SizedBox(height: 24),
-                    
                     _buildSettingsSection()
-                      .animate()
-                      .fadeIn(duration: 600.ms, delay: 600.ms)
-                      .slideX(begin: -0.2),
-                    
+                        .animate()
+                        .fadeIn(duration: 600.ms, delay: 600.ms)
+                        .slideX(begin: -0.2),
                     SizedBox(height: 24),
-                    
                     _buildActionButtons()
-                      .animate()
-                      .fadeIn(duration: 600.ms, delay: 800.ms)
-                      .slideY(begin: 0.2),
-                    
+                        .animate()
+                        .fadeIn(duration: 600.ms, delay: 800.ms)
+                        .slideY(begin: 0.2),
                     SizedBox(height: 100),
                   ],
                 ),
@@ -158,7 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return Consumer<AuthProvider>(
       builder: (context, auth, child) {
         final user = auth.user;
-        
+
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: 20),
           child: GlassCard(
@@ -180,50 +172,71 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 padding: EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    // ✅ FIX #2: Use key to force widget rebuild when photoUrl changes
                     ProfilePicturePicker(
-                      key: ValueKey(user?['photoUrl'] ?? 'no-photo'),
+                      key: _profilePicKey,
                       currentImageUrl: user?['photoUrl'],
                       onImageSelected: (File imageFile) async {
                         print('📸 Profile picture selected');
-                        
+
                         // Show loading indicator
                         showDialog(
                           context: context,
                           barrierDismissible: false,
                           builder: (context) => Center(
                             child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryPink),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppTheme.primaryPink),
                             ),
                           ),
                         );
-                        
-                        final result = await auth.uploadProfilePicture(imageFile);
-                        
-                        // Close loading dialog
-                        if (mounted) Navigator.of(context).pop();
-                        
-                        if (result != null && mounted) {
-                          print('✅ Profile picture uploaded successfully');
-                          
-                          // ✅ FIX #2: Refresh user data to ensure we have the latest photoUrl
-                          await auth.refreshUserData();
-                          
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Profile picture updated! ✨'),
-                              backgroundColor: AppTheme.successColor,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+
+                        try {
+                          final result =
+                              await auth.uploadProfilePicture(imageFile);
+
+                          // Close loading dialog
+                          if (mounted) Navigator.of(context).pop();
+
+                          if (result != null && mounted) {
+                            print('Profile picture uploaded successfully');
+
+                            // Force a rebuild of the ProfilePicturePicker widget
+                            setState(() {
+                              // Just trigger a rebuild without changing the key
+                            });
+
+                            await auth.refreshUserData();
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Profile picture updated! ✨'),
+                                backgroundColor: AppTheme.successColor,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
-                            ),
-                          );
-                        } else if (mounted) {
-                          print('❌ Profile picture upload failed');
+                            );
+                          } else if (mounted) {
+                            print('❌ Profile picture upload failed');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content:
+                                    Text('Failed to update profile picture'),
+                                backgroundColor: AppTheme.errorColor,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (error) {
+                          if (mounted) Navigator.of(context).pop();
+                          print('❌ Error uploading profile picture: $error');
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Failed to update profile picture'),
+                              content: Text('Error updating profile picture'),
                               backgroundColor: AppTheme.errorColor,
                               behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(
@@ -234,10 +247,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                         }
                       },
                       size: 120,
-                    ).animate().scale(duration: 800.ms, curve: Curves.elasticOut),
-                    
+                    )
+                        .animate()
+                        .scale(duration: 800.ms, curve: Curves.elasticOut),
                     SizedBox(height: 20),
-                    
                     Text(
                       user?['name'] ?? 'User',
                       style: TextStyle(
@@ -246,9 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                         color: AppTheme.textDark,
                       ),
                     ).animate().fadeIn(duration: 600.ms, delay: 200.ms),
-                    
                     SizedBox(height: 6),
-                    
                     Text(
                       user?['email'] ?? '',
                       style: TextStyle(
@@ -270,7 +281,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return Consumer<HealthProvider>(
       builder: (context, health, child) {
         final metrics = health.healthMetrics;
-        
+
         if (metrics == null || metrics.isEmpty) {
           return Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
@@ -318,10 +329,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             ),
           );
         }
-        
+
         final bmi = _calculateBMI(metrics);
-        final age = _calculateAge(metrics['birthdate']);
-        
+
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: 20),
           child: Column(
@@ -342,7 +352,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => HealthMetricsScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => HealthMetricsScreen()),
                       );
                     },
                     icon: Icon(Icons.edit, size: 16),
@@ -368,7 +379,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   SizedBox(width: 12),
                   Expanded(
                     child: _buildHealthStatCard(
-                      metrics['useMetric'] == true 
+                      metrics['useMetric'] == true
                           ? '${metrics['weight']?.toInt() ?? 'N/A'} kg'
                           : '${metrics['weight']?.toInt() ?? 'N/A'} lb',
                       'Weight',
@@ -396,7 +407,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildHealthStatCard(String value, String label, IconData icon, Color color, int delayMs) {
+  Widget _buildHealthStatCard(
+      String value, String label, IconData icon, Color color, int delayMs) {
     return GlassCard(
       margin: EdgeInsets.zero,
       padding: EdgeInsets.all(16),
@@ -429,7 +441,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 600.ms, delay: Duration(milliseconds: delayMs));
+    )
+        .animate()
+        .fadeIn(duration: 600.ms, delay: Duration(milliseconds: delayMs));
   }
 
   Widget _buildSettingsSection() {
@@ -459,7 +473,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => NotificationSettingsScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => NotificationSettingsScreen()),
                     );
                   },
                   0,
@@ -498,7 +513,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildSettingsTile(String title, IconData icon, Color color, VoidCallback onTap, int delayMs) {
+  Widget _buildSettingsTile(String title, IconData icon, Color color,
+      VoidCallback onTap, int delayMs) {
     return ListTile(
       onTap: onTap,
       leading: Container(
@@ -518,7 +534,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         ),
       ),
       trailing: Icon(Icons.chevron_right, color: AppTheme.textGray),
-    ).animate().fadeIn(duration: 600.ms, delay: Duration(milliseconds: delayMs));
+    )
+        .animate()
+        .fadeIn(duration: 600.ms, delay: Duration(milliseconds: delayMs));
   }
 
   Widget _buildActionButtons() {
@@ -549,15 +567,17 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context, true),
-                      style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                      style:
+                          TextButton.styleFrom(foregroundColor: AppTheme.error),
                       child: Text('Sign Out'),
                     ),
                   ],
                 ),
               );
-              
+
               if (confirmed == true) {
-                await Provider.of<AuthProvider>(context, listen: false).logout();
+                await Provider.of<AuthProvider>(context, listen: false)
+                    .logout();
                 Navigator.of(context).pushReplacementNamed('/login');
               }
             },
@@ -567,7 +587,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildActionButton(
+      String label, IconData icon, Color color, VoidCallback onTap) {
     return Container(
       width: double.infinity,
       height: 56,
@@ -605,37 +626,21 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     final height = metrics['height'];
     final weight = metrics['weight'];
     final useMetric = metrics['useMetric'] ?? true;
-    
+
     if (height == null || weight == null) return null;
-    
+
     double heightM = useMetric ? height / 100 : height * 30.48 / 100;
     double weightKg = useMetric ? weight.toDouble() : weight * 0.453592;
-    
-    return weightKg / (heightM * heightM);
-  }
 
-  int? _calculateAge(String? birthdate) {
-    if (birthdate == null) return null;
-    
-    try {
-      final birth = DateTime.parse(birthdate);
-      final now = DateTime.now();
-      int age = now.year - birth.year;
-      if (now.month < birth.month || (now.month == birth.month && now.day < birth.day)) {
-        age--;
-      }
-      return age;
-    } catch (e) {
-      return null;
-    }
+    return weightKg / (heightM * heightM);
   }
 
   String _formatHeight(Map<String, dynamic> metrics) {
     final height = metrics['height'];
     final useMetric = metrics['useMetric'] ?? true;
-    
+
     if (height == null) return 'N/A';
-    
+
     if (useMetric) {
       return '${height.toInt()} cm';
     } else {
