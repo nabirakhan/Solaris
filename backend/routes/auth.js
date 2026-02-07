@@ -1,6 +1,5 @@
 // File: backend/routes/auth.js
 const supabaseStorage = require('../services/supabaseStorage');
-const fs = require('fs').promises;
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
