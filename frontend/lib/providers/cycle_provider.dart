@@ -297,9 +297,13 @@ class CycleProvider with ChangeNotifier {
     notifyListeners();
     
     try {
+      // ✅ FIX: Clear cycles before loading to prevent stale data
+      _cycles = [];
+      notifyListeners();
+      
       _cycles = await _apiService.getCycles();
-      await loadPeriodDays(); // Also load period days
       _error = null;
+      print('✅ Loaded ${_cycles.length} cycles');
     } catch (e) {
       _error = 'Error loading cycles: $e';
       _cycles = [];
@@ -431,15 +435,25 @@ class CycleProvider with ChangeNotifier {
   }
 
   /// Delete a cycle completely
+  /// ✅ FIX: Clear cycles list before API call and reload to prevent stale data
   Future<bool> deleteCycle(String cycleId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
     
     try {
+      // ✅ FIX: Remove the cycle from local state immediately
+      _cycles.removeWhere((cycle) => 
+        (cycle['id'] == cycleId) || (cycle['_id'] == cycleId)
+      );
+      notifyListeners();
+      
+      // Call API to delete
       await _apiService.deleteCycle(cycleId);
       
+      // Force reload from server to get fresh data
       await loadCycles();
+      await loadPeriodDays();
       await loadCurrentInsights();
       
       _isLoading = false;
@@ -448,6 +462,8 @@ class CycleProvider with ChangeNotifier {
     } catch (e) {
       _error = 'Error deleting cycle: $e';
       _isLoading = false;
+      // Reload on error to ensure consistency
+      await loadCycles();
       notifyListeners();
       print('❌ Error deleting cycle: $e');
       return false;

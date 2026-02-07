@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Cycle = require('../models/Cycle');
 const auth = require('../middleware/auth');
+const { pool } = require('../config/database');
 
 // Create new cycle
 router.post('/', auth, async (req, res) => {
@@ -112,14 +113,34 @@ router.get('/stats/average', auth, async (req, res) => {
   }
 });
 
-// Delete cycle
+// Delete cycle - FIX: Also delete associated period_days
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const cycle = await Cycle.delete(req.params.id, req.userId);
+    // First, get the cycle to find its date range
+    const cycle = await Cycle.findById(req.params.id, req.userId);
 
     if (!cycle) {
       return res.status(404).json({ error: 'Cycle not found' });
     }
+
+    // Delete all period_days within this cycle's date range
+    const startDate = cycle.start_date;
+    const endDate = cycle.end_date || new Date().toISOString().split('T')[0];
+    
+    // If cycle has no end date, delete period days from start date onwards
+    // that are close together (within 2 days of each other)
+    await pool.query(
+      `DELETE FROM period_days 
+       WHERE user_id = $1 
+       AND date >= $2 
+       AND date <= $3`,
+      [req.userId, startDate, endDate]
+    );
+
+    // Now delete the cycle
+    await Cycle.delete(req.params.id, req.userId);
+
+    console.log(`✅ Deleted cycle ${req.params.id} and associated period days`);
 
     res.json({ message: 'Cycle deleted successfully' });
   } catch (error) {

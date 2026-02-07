@@ -88,7 +88,7 @@ router.post('/', auth, async (req, res) => {
       console.log(`✅ Inserted new period day for ${date}`);
     }
     
-    // Update or create cycle
+    // Update or create cycle - ONLY for new period days
     await updateCyclesFromPeriodDays(req.userId);
     
     res.status(201).json({
@@ -155,8 +155,10 @@ router.put('/:id', auth, async (req, res) => {
     
     const result = await pool.query(updateQuery, values);
     
-    // Update cycles
-    await updateCyclesFromPeriodDays(req.userId);
+    // Update cycles - only if flow changed significantly
+    if (flow !== undefined) {
+      await updateCyclesFromPeriodDays(req.userId);
+    }
     
     res.json({
       message: 'Period day updated successfully',
@@ -206,6 +208,7 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
+// ✅ FIX: Modified to only recreate cycles when there are orphaned period_days
 // Helper function to automatically create/update cycles from period days
 async function updateCyclesFromPeriodDays(userId) {
   try {
@@ -220,12 +223,25 @@ async function updateCyclesFromPeriodDays(userId) {
     const periodDays = periodDaysResult.rows;
     
     if (periodDays.length === 0) {
+      // If no period days exist, delete all cycles
+      await pool.query('DELETE FROM cycles WHERE user_id = $1', [userId]);
+      console.log(`✅ No period days found, cleared all cycles for user ${userId}`);
       return;
     }
     
-    // Group consecutive period days into cycles
-    const cycles = [];
-    let currentCycle = {
+    // Get existing cycles
+    const existingCyclesQuery = `
+      SELECT id, start_date, end_date
+      FROM cycles
+      WHERE user_id = $1
+      ORDER BY start_date ASC
+    `;
+    const existingCyclesResult = await pool.query(existingCyclesQuery, [userId]);
+    const existingCycles = existingCyclesResult.rows;
+    
+    // Group consecutive period days into cycle date ranges
+    const cycleRanges = [];
+    let currentRange = {
       startDate: periodDays[0].date,
       periodDays: [periodDays[0]]
     };
@@ -237,71 +253,121 @@ async function updateCyclesFromPeriodDays(userId) {
       
       // If days are consecutive or within 1-2 days, they're part of same period
       if (daysDiff <= 2) {
-        currentCycle.periodDays.push(periodDays[i]);
+        currentRange.periodDays.push(periodDays[i]);
       } else {
-        // End current cycle and start new one
-        currentCycle.endDate = periodDays[i - 1].date;
-        currentCycle.periodLength = currentCycle.periodDays.length;
-        cycles.push(currentCycle);
+        // End current range and start new one
+        currentRange.endDate = periodDays[i - 1].date;
+        currentRange.periodLength = currentRange.periodDays.length;
+        cycleRanges.push(currentRange);
         
-        currentCycle = {
+        currentRange = {
           startDate: periodDays[i].date,
           periodDays: [periodDays[i]]
         };
       }
     }
     
-    // Add the last cycle (ongoing if no end date)
-    if (currentCycle.periodDays.length > 0) {
+    // Add the last range (ongoing if no end date)
+    if (currentRange.periodDays.length > 0) {
       // Check if it's recent (within last 10 days) - if so, leave open
-      const lastDate = new Date(currentCycle.periodDays[currentCycle.periodDays.length - 1].date);
+      const lastDate = new Date(currentRange.periodDays[currentRange.periodDays.length - 1].date);
       const today = new Date();
       const daysSinceLastPeriod = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
       
       if (daysSinceLastPeriod > 10) {
-        currentCycle.endDate = lastDate;
-        currentCycle.periodLength = currentCycle.periodDays.length;
+        currentRange.endDate = lastDate;
+        currentRange.periodLength = currentRange.periodDays.length;
       }
       
-      cycles.push(currentCycle);
+      cycleRanges.push(currentRange);
     }
     
-    // Delete existing auto-generated cycles
-    await pool.query('DELETE FROM cycles WHERE user_id = $1', [userId]);
+    // ✅ FIX: Only delete cycles that don't have matching period days
+    // Compare existing cycles with period day ranges
+    const cyclesToDelete = [];
+    const cyclesToKeep = new Set();
     
-    // Insert new cycles with calculated cycle lengths
-    for (let i = 0; i < cycles.length; i++) {
-      const cycle = cycles[i];
-      const nextCycle = cycles[i + 1];
+    for (const existingCycle of existingCycles) {
+      let hasMatchingPeriodDays = false;
+      
+      for (const range of cycleRanges) {
+        if (existingCycle.start_date === range.startDate) {
+          hasMatchingPeriodDays = true;
+          cyclesToKeep.add(existingCycle.id);
+          break;
+        }
+      }
+      
+      if (!hasMatchingPeriodDays) {
+        cyclesToDelete.push(existingCycle.id);
+      }
+    }
+    
+    // Delete cycles that don't have matching period days
+    if (cyclesToDelete.length > 0) {
+      await pool.query(
+        'DELETE FROM cycles WHERE id = ANY($1::uuid[])',
+        [cyclesToDelete]
+      );
+      console.log(`✅ Deleted ${cyclesToDelete.length} orphaned cycles`);
+    }
+    
+    // Insert or update cycles
+    for (let i = 0; i < cycleRanges.length; i++) {
+      const range = cycleRanges[i];
+      const nextRange = cycleRanges[i + 1];
       
       let cycleLength = null;
-      if (nextCycle) {
-        const start = new Date(cycle.startDate);
-        const nextStart = new Date(nextCycle.startDate);
+      if (nextRange) {
+        const start = new Date(range.startDate);
+        const nextStart = new Date(nextRange.startDate);
         cycleLength = Math.floor((nextStart - start) / (1000 * 60 * 60 * 24));
       }
       
-      const insertQuery = `
-        INSERT INTO cycles (
-          user_id, 
-          start_date, 
-          end_date, 
-          cycle_length, 
-          period_length
-        )
-        VALUES ($1, $2, $3, $4, $5)
-      `;
+      // Check if cycle already exists
+      const existingCycle = existingCycles.find(c => c.start_date === range.startDate);
       
-      await pool.query(insertQuery, [
-        userId,
-        cycle.startDate,
-        cycle.endDate || null,
-        cycleLength,
-        cycle.periodLength || null
-      ]);
+      if (existingCycle) {
+        // Update existing cycle
+        const updateQuery = `
+          UPDATE cycles 
+          SET end_date = $1, 
+              cycle_length = $2, 
+              period_length = $3,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = $4
+        `;
+        
+        await pool.query(updateQuery, [
+          range.endDate || null,
+          cycleLength,
+          range.periodLength || null,
+          existingCycle.id
+        ]);
+      } else {
+        // Insert new cycle
+        const insertQuery = `
+          INSERT INTO cycles (
+            user_id, 
+            start_date, 
+            end_date, 
+            cycle_length, 
+            period_length
+          )
+          VALUES ($1, $2, $3, $4, $5)
+        `;
+        
+        await pool.query(insertQuery, [
+          userId,
+          range.startDate,
+          range.endDate || null,
+          cycleLength,
+          range.periodLength || null
+        ]);
+      }
     }
     
-    console.log(`✅ Updated cycles for user ${userId}: ${cycles.length} cycles created`);
+    console.log(`✅ Updated cycles for user ${userId}: ${cycleRanges.length} cycles managed`);
   } catch (error) {
     console.error('Error updating cycles from period days:', error);
     // Don't throw - this is a background operation
