@@ -258,10 +258,12 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
     
     List<Widget> dayWidgets = [];
     
+    // Add empty cells for days before the first day of month
     for (int i = 0; i < firstWeekday; i++) {
       dayWidgets.add(Expanded(child: SizedBox()));
     }
     
+    // Add actual day cells
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_selectedMonth.year, _selectedMonth.month, day);
       final isPeriod = _isPeriodDay(provider, date);
@@ -317,6 +319,16 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
           ),
         ),
       );
+    }
+    
+    // ✅ FIX: Pad the last row with empty cells to maintain grid structure
+    final totalCells = dayWidgets.length;
+    final remainingCells = totalCells % 7;
+    if (remainingCells != 0) {
+      final cellsToAdd = 7 - remainingCells;
+      for (int i = 0; i < cellsToAdd; i++) {
+        dayWidgets.add(Expanded(child: SizedBox()));
+      }
     }
     
     return Column(
