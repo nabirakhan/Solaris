@@ -218,14 +218,14 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
               ),
             ],
           ),
-          if (!isActive) ...[
+          if (endDateTime != null) ...[
             SizedBox(height: 8),
             Row(
               children: [
                 Icon(Icons.event_available, size: 16, color: AppTheme.textGray),
                 SizedBox(width: 8),
                 Text(
-                  'Ended: ${DateFormat('MMM dd, yyyy').format(endDateTime!)}',
+                  'Ended: ${DateFormat('MMM dd, yyyy').format(endDateTime)}',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppTheme.textGray,
@@ -234,43 +234,54 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
               ],
             ),
           ],
-          SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.access_time, size: 16, color: AppTheme.textGray),
-              SizedBox(width: 8),
-              Text(
-                'Duration: $duration ${duration == 1 ? "day" : "days"}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.textGray,
+          SizedBox(height: 12),
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _getFlowColor(flow).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.water_drop, size: 20, color: _getFlowColor(flow)),
+                SizedBox(width: 8),
+                Text(
+                  'Flow: ${_capitalizeFirst(flow)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _getFlowColor(flow),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.water_drop, size: 16, color: _getFlowColor(flow)),
-              SizedBox(width: 8),
-              Text(
-                'Flow: ${_capitalizeFirst(flow)}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.textGray,
+                Spacer(),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryPink.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '$duration days',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryPink,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           if (notes != null && notes.isNotEmpty) ...[
             SizedBox(height: 12),
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.lightPink.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                color: AppTheme.textGray.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(Icons.note, size: 16, color: AppTheme.textGray),
                   SizedBox(width: 8),
@@ -278,9 +289,8 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
                     child: Text(
                       notes,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         color: AppTheme.textGray,
-                        fontStyle: FontStyle.italic,
                       ),
                     ),
                   ),
@@ -288,49 +298,41 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
               ),
             ),
           ],
+          SizedBox(height: 16),
+          Divider(height: 1),
           SizedBox(height: 12),
-          _buildSymptomsSectionForCycle(startDateTime, endDateTime),
+          _buildSymptomsList(cycleId, startDate, endDate),
         ],
       ),
     );
   }
 
-  Widget _buildSymptomsSectionForCycle(DateTime startDate, DateTime? endDate) {
+  Widget _buildSymptomsList(String cycleId, String startDate, String? endDate) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _fetchSymptomsForDateRange(startDate, endDate),
+      future: _fetchSymptoms(cycleId, startDate, endDate),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
             child: Padding(
-              padding: EdgeInsets.all(8),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(AppTheme.primaryPink),
+                strokeWidth: 2,
               ),
             ),
           );
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, size: 16, color: AppTheme.textGray),
-                SizedBox(width: 8),
-                Text(
-                  'No symptoms logged for this cycle',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.textGray,
-                  ),
-                ),
-              ],
+          return Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'No symptoms logged for this cycle',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppTheme.textGray.withOpacity(0.6),
+                fontStyle: FontStyle.italic,
+              ),
             ),
           );
         }
@@ -339,137 +341,157 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Divider(),
-            SizedBox(height: 8),
-            Text(
-              'Logged Symptoms & Notes',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textDark,
-              ),
+            Row(
+              children: [
+                Icon(Icons.favorite, size: 16, color: AppTheme.primaryPink),
+                SizedBox(width: 8),
+                Text(
+                  'Symptoms (${symptoms.length})',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+              ],
             ),
-            SizedBox(height: 8),
-            ...symptoms.map((symptom) => _buildSymptomDayCard(symptom)),
+            SizedBox(height: 12),
+            ...symptoms.take(3).map((symptom) => _buildSymptomItem(symptom)).toList(),
+            if (symptoms.length > 3)
+              TextButton.icon(
+                onPressed: () => _showAllSymptoms(symptoms),
+                icon: Icon(Icons.expand_more, size: 16),
+                label: Text('View all ${symptoms.length} entries'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.primaryPink,
+                  padding: EdgeInsets.zero,
+                ),
+              ),
           ],
         );
       },
     );
   }
 
-  Widget _buildSymptomDayCard(Map<String, dynamic> symptom) {
+  Widget _buildSymptomItem(Map<String, dynamic> symptom) {
     final date = DateTime.parse(symptom['date']);
-    final symptoms = symptom['symptoms'] as Map<String, dynamic>? ?? {};
-    final notes = symptom['notes'];
-    final sleepHours = symptom['sleep_hours'] ?? symptom['sleepHours'];
-    final stressLevel = symptom['stress_level'] ?? symptom['stressLevel'];
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.lightPink.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.textGray.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.calendar_today, size: 14, color: AppTheme.primaryPink),
-              SizedBox(width: 6),
-              Text(
-                DateFormat('MMM dd, yyyy').format(date),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
-                ),
+    final symptoms = symptom['symptoms'] as Map<String, dynamic>?;
+    
+    return InkWell(
+      onTap: () => _showEditSymptomDialog(symptom),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 8),
+        padding: EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryPink.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.primaryPink.withOpacity(0.1)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_today, size: 14, color: AppTheme.textGray),
+            SizedBox(width: 8),
+            Text(
+              DateFormat('MMM dd').format(date),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textDark,
               ),
-              Spacer(),
-              IconButton(
-                icon: Icon(Icons.edit, size: 18, color: AppTheme.primaryPink),
-                onPressed: () => _showEditSymptomDialog(symptom),
-                padding: EdgeInsets.zero,
-                constraints: BoxConstraints(),
+            ),
+            SizedBox(width: 12),
+            if (symptoms != null && symptoms.isNotEmpty) ...[
+              Expanded(
+                child: Text(
+                  _getSymptomSummary(symptoms),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textGray,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
-          ),
-          if (symptoms.isNotEmpty) ...[
-            SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: symptoms.entries.map((entry) {
-                if (entry.value == 0) return SizedBox.shrink();
-                return Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryPink.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${_capitalizeFirst(entry.key)}: ${entry.value}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
+            Icon(Icons.edit, size: 14, color: AppTheme.primaryPink),
           ],
-          if (sleepHours != null) ...[
-            SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(Icons.bedtime, size: 14, color: AppTheme.textGray),
-                SizedBox(width: 6),
-                Text(
-                  'Sleep: ${sleepHours}h',
-                  style: TextStyle(fontSize: 12, color: AppTheme.textGray),
-                ),
-              ],
-            ),
-          ],
-          if (stressLevel != null) ...[
-            SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(Icons.psychology, size: 14, color: AppTheme.textGray),
-                SizedBox(width: 6),
-                Text(
-                  'Stress: $stressLevel/5',
-                  style: TextStyle(fontSize: 12, color: AppTheme.textGray),
-                ),
-              ],
-            ),
-          ],
-          if (notes != null && notes.isNotEmpty) ...[
-            SizedBox(height: 6),
-            Text(
-              notes,
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.textGray,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
 
-  Future<List<Map<String, dynamic>>> _fetchSymptomsForDateRange(DateTime startDate, DateTime? endDate) async {
+  String _getSymptomSummary(Map<String, dynamic> symptoms) {
+    final active = <String>[];
+    symptoms.forEach((key, value) {
+      if (value != null && (value is num && value > 0)) {
+        active.add(_capitalizeFirst(key));
+      }
+    });
+    return active.isEmpty ? 'No symptoms' : active.join(', ');
+  }
+
+  void _showAllSymptoms(List<Map<String, dynamic>> symptoms) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.textGray.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Text(
+                  'All Symptom Entries',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+              ),
+              Divider(),
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  padding: EdgeInsets.all(20),
+                  itemCount: symptoms.length,
+                  itemBuilder: (context, index) => _buildSymptomItem(symptoms[index]),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchSymptoms(String cycleId, String startDate, String? endDate) async {
     try {
-      final allSymptoms = await _apiService.getSymptomLogs();
-      final endDateToUse = endDate ?? DateTime.now();
+      final allSymptoms = await _apiService.getSymptoms();
+      final startDateTime = DateTime.parse(startDate);
+      final endDateToUse = endDate != null ? DateTime.parse(endDate) : DateTime.now().add(Duration(days: 1));
       
       final filtered = allSymptoms.where((symptom) {
         final symptomDate = DateTime.parse(symptom['date']);
-        return !symptomDate.isBefore(startDate) && !symptomDate.isAfter(endDateToUse);
+        return !symptomDate.isBefore(startDateTime) && !symptomDate.isAfter(endDateToUse);
       }).toList();
       
       filtered.sort((a, b) => DateTime.parse(b['date']).compareTo(DateTime.parse(a['date'])));
@@ -486,9 +508,10 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
     final date = DateTime.parse(symptom['date']);
     Map<String, double> symptoms = {};
     
+    // ✅ FIX: Changed from 0-5 scale to 0-10 scale to match log_screen
     (symptom['symptoms'] as Map<String, dynamic>?)?.forEach((key, value) {
       double parsedValue = (value is num) ? value.toDouble() : double.tryParse(value.toString()) ?? 0.0;
-      symptoms[key] = parsedValue.clamp(0.0, 5.0);
+      symptoms[key] = parsedValue.clamp(0.0, 10.0);  // Changed from 5.0 to 10.0
     });
     
     final sleepHoursValue = symptom['sleep_hours'] ?? symptom['sleepHours'] ?? 7.0;
@@ -592,18 +615,25 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
     ).then((_) => setState(() {}));
   }
 
+  // ✅ FIX: Changed slider from 0-5 to 0-10 scale
   Widget _buildSymptomSlider(String label, String key, Map<String, double> symptoms, StateSetter setState) {
-    double value = (symptoms[key] ?? 0.0).clamp(0.0, 5.0);
+    double value = (symptoms[key] ?? 0.0).clamp(0.0, 10.0);  // Changed from 5.0 to 10.0
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text('${value.toInt()}/10', style: TextStyle(fontSize: 12, color: AppTheme.textGray)),  // Changed label to show /10
+          ],
+        ),
         Slider(
           value: value,
           min: 0,
-          max: 5,
-          divisions: 5,
+          max: 10,  // Changed from 5 to 10
+          divisions: 10,  // Changed from 5 to 10
           label: value.toInt().toString(),
           onChanged: (newValue) => setState(() => symptoms[key] = newValue),
         ),

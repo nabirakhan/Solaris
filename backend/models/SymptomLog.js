@@ -114,6 +114,64 @@ class SymptomLog {
     }
   }
 
+  // ✅ FIX: Added update method for PUT endpoint
+  static async update(id, userId, updates) {
+    try {
+      // Build dynamic update query based on provided fields
+      const updateFields = [];
+      const values = [];
+      let valueIndex = 1;
+
+      if (updates.symptoms !== undefined) {
+        updateFields.push(`symptoms = $${valueIndex}`);
+        values.push(JSON.stringify(updates.symptoms));
+        valueIndex++;
+      }
+
+      if (updates.sleepHours !== undefined) {
+        updateFields.push(`sleep_hours = $${valueIndex}`);
+        values.push(updates.sleepHours);
+        valueIndex++;
+      }
+
+      if (updates.stressLevel !== undefined) {
+        updateFields.push(`stress_level = $${valueIndex}`);
+        values.push(updates.stressLevel);
+        valueIndex++;
+      }
+
+      if (updates.notes !== undefined) {
+        updateFields.push(`notes = $${valueIndex}`);
+        values.push(updates.notes);
+        valueIndex++;
+      }
+
+      // Always update the updated_at timestamp
+      updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+
+      // Add id and userId to values
+      values.push(id);
+      const idIndex = valueIndex;
+      valueIndex++;
+      
+      values.push(userId);
+      const userIdIndex = valueIndex;
+
+      const sql = `
+        UPDATE symptom_logs
+        SET ${updateFields.join(', ')}
+        WHERE id = $${idIndex} AND user_id = $${userIdIndex}
+        RETURNING id, user_id, date, symptoms, sleep_hours, stress_level, 
+                  notes, created_at, updated_at
+      `;
+
+      const result = await query(sql, values);
+      return result.rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
   static async delete(id, userId) {
     try {
       const sql = `
@@ -147,12 +205,6 @@ class SymptomLog {
     }
   }
 
-  // ============================================================================
-  // FIX #3: Parameterized SQL interval to prevent SQL injection
-  // ============================================================================
-  // BEFORE: WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '${days} days'
-  // AFTER:  WHERE user_id = $1 AND date >= CURRENT_DATE - ($2 || ' days')::INTERVAL
-  // ============================================================================
   static async getStats(userId, days = 30) {
     try {
       // Validate days parameter to prevent abuse

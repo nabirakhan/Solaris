@@ -90,6 +90,35 @@ router.get('/stats/summary', auth, async (req, res) => {
   }
 });
 
+// ✅ FIX: Added PUT endpoint for updating symptoms
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const { symptoms, sleepHours, stressLevel, notes } = req.body;
+    const { id } = req.params;
+
+    // Build update object with only provided fields
+    const updates = {};
+    if (symptoms !== undefined) updates.symptoms = symptoms;
+    if (sleepHours !== undefined) updates.sleepHours = sleepHours;
+    if (stressLevel !== undefined) updates.stressLevel = stressLevel;
+    if (notes !== undefined) updates.notes = notes;
+
+    const log = await SymptomLog.update(id, req.userId, updates);
+
+    if (!log) {
+      return res.status(404).json({ error: 'Log not found' });
+    }
+
+    res.json({
+      message: 'Symptom log updated successfully',
+      log
+    });
+  } catch (error) {
+    console.error('Update symptom log error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.delete('/:id', auth, async (req, res) => {
   try {
     const log = await SymptomLog.delete(req.params.id, req.userId);
