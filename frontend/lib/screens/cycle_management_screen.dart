@@ -485,12 +485,20 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
     final symptomId = symptom['_id'] ?? symptom['id'];
     final date = DateTime.parse(symptom['date']);
     Map<String, double> symptoms = {};
+    
     (symptom['symptoms'] as Map<String, dynamic>?)?.forEach((key, value) {
-      symptoms[key] = value.toDouble();
+      double parsedValue = (value is num) ? value.toDouble() : double.tryParse(value.toString()) ?? 0.0;
+      symptoms[key] = parsedValue.clamp(0.0, 5.0);
     });
     
-    double sleepHours = (symptom['sleep_hours'] ?? symptom['sleepHours'] ?? 7.0).toDouble();
-    int stressLevel = (symptom['stress_level'] ?? symptom['stressLevel'] ?? 0);
+    final sleepHoursValue = symptom['sleep_hours'] ?? symptom['sleepHours'] ?? 7.0;
+    double sleepHours = (sleepHoursValue is num) ? sleepHoursValue.toDouble() : double.tryParse(sleepHoursValue.toString()) ?? 7.0;
+    sleepHours = sleepHours.clamp(0.0, 12.0);
+    
+    final stressLevelValue = symptom['stress_level'] ?? symptom['stressLevel'] ?? 0;
+    int stressLevel = (stressLevelValue is int) ? stressLevelValue : int.tryParse(stressLevelValue.toString()) ?? 0;
+    stressLevel = stressLevel.clamp(0, 5);
+    
     String notes = symptom['notes'] ?? '';
 
     showDialog(
@@ -585,7 +593,8 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
   }
 
   Widget _buildSymptomSlider(String label, String key, Map<String, double> symptoms, StateSetter setState) {
-    final value = symptoms[key] ?? 0;
+    double value = (symptoms[key] ?? 0.0).clamp(0.0, 5.0);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
