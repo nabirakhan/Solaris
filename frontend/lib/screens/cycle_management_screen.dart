@@ -193,8 +193,8 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
               Spacer(),
               IconButton(
                 icon: Icon(Icons.edit_note, color: AppTheme.primaryPink),
-                onPressed: () => _showEditCycleDialog(cycle, cycleProvider),
-                tooltip: 'Edit Cycle',
+                onPressed: () => _showEditFlowDaysDialog(cycleId, startDate, endDate, notes, cycleProvider),
+                tooltip: 'Edit Flow Days',
               ),
               IconButton(
                 icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
@@ -266,7 +266,7 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
           SizedBox(height: 16),
           Divider(height: 1),
           SizedBox(height: 12),
-          _buildSymptomsList(cycleId, startDate, endDate),
+          _buildSymptomsList(startDate, endDate),
         ],
       ),
     );
@@ -457,9 +457,9 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
     }
   }
 
-  Widget _buildSymptomsList(String cycleId, String startDate, String? endDate) {
+  Widget _buildSymptomsList(String startDate, String? endDate) {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _fetchSymptoms(cycleId, startDate, endDate),
+      future: _fetchSymptoms(startDate, endDate),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
@@ -505,18 +505,8 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
                 ),
               ],
             ),
-            SizedBox(height: 12),
-            ...symptoms.take(3).map((symptom) => _buildSymptomItem(symptom)).toList(),
-            if (symptoms.length > 3)
-              TextButton.icon(
-                onPressed: () => _showAllSymptoms(symptoms),
-                icon: Icon(Icons.expand_more, size: 16),
-                label: Text('View all ${symptoms.length} entries'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.primaryPink,
-                  padding: EdgeInsets.zero,
-                ),
-              ),
+            SizedBox(height: 8),
+            ...symptoms.map((symptom) => _buildSymptomItem(symptom)).toList(),
           ],
         );
       },
@@ -526,130 +516,122 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
   Widget _buildSymptomItem(Map<String, dynamic> symptom) {
     final date = DateTime.parse(symptom['date']);
     final symptoms = symptom['symptoms'] as Map<String, dynamic>?;
+    final sleepHours = symptom['sleepHours'];
+    final stressLevel = symptom['stressLevel'];
+    final notes = symptom['notes'];
+    final symptomId = symptom['_id'] ?? symptom['id'];
     
-    return InkWell(
-      onTap: () => _showEditSymptomDialog(symptom),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        margin: EdgeInsets.only(bottom: 8),
-        padding: EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppTheme.primaryPink.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppTheme.primaryPink.withOpacity(0.1)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.calendar_today, size: 14, color: AppTheme.textGray),
-            SizedBox(width: 8),
-            Text(
-              DateFormat('MMM dd').format(date),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textDark,
-              ),
-            ),
-            SizedBox(width: 12),
-            if (symptoms != null && symptoms.isNotEmpty) ...[
-              Expanded(
-                child: Text(
-                  _getSymptomSummary(symptoms),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textGray,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+    return Container(
+      margin: EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryPink.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.primaryPink.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                DateFormat('MMM dd, yyyy').format(date),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textDark,
                 ),
+              ),
+              IconButton(
+                icon: Icon(Icons.edit, size: 18, color: AppTheme.primaryPink),
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints(),
+                onPressed: () => _showEditSymptomDialog(symptomId, symptom),
               ),
             ],
-            Icon(Icons.edit, size: 14, color: AppTheme.primaryPink),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getSymptomSummary(Map<String, dynamic> symptoms) {
-    final active = <String>[];
-    symptoms.forEach((key, value) {
-      if (value != null && (value is num && value > 0)) {
-        active.add(_capitalizeFirst(key));
-      }
-    });
-    return active.isEmpty ? 'No symptoms' : active.join(', ');
-  }
-
-  void _showAllSymptoms(List<Map<String, dynamic>> symptoms) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        builder: (context, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          child: Column(
-            children: [
-              Container(
-                padding: EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.favorite, color: AppTheme.primaryPink),
-                    SizedBox(width: 12),
-                    Text(
-                      'All Symptom Entries',
+          if (symptoms != null && symptoms.isNotEmpty) ...[
+            SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: symptoms.entries.map((entry) {
+                if (entry.value > 0) {
+                  return Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryPink.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${_capitalizeFirst(entry.key)}: ${entry.value}',
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
                         color: AppTheme.textDark,
                       ),
                     ),
-                    Spacer(),
-                    IconButton(
-                      icon: Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
+                  );
+                }
+                return SizedBox.shrink();
+              }).toList(),
+            ),
+          ],
+          if (sleepHours != null || stressLevel != null) ...[
+            SizedBox(height: 6),
+            Row(
+              children: [
+                if (sleepHours != null) ...[
+                  Icon(Icons.bedtime, size: 14, color: AppTheme.textGray),
+                  SizedBox(width: 4),
+                  Text(
+                    '${sleepHours}h',
+                    style: TextStyle(fontSize: 11, color: AppTheme.textGray),
+                  ),
+                  SizedBox(width: 12),
+                ],
+                if (stressLevel != null) ...[
+                  Icon(Icons.psychology, size: 14, color: AppTheme.textGray),
+                  SizedBox(width: 4),
+                  Text(
+                    'Stress: $stressLevel/5',
+                    style: TextStyle(fontSize: 11, color: AppTheme.textGray),
+                  ),
+                ],
+              ],
+            ),
+          ],
+          if (notes != null && notes.isNotEmpty) ...[
+            SizedBox(height: 6),
+            Text(
+              notes,
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.textGray,
+                fontStyle: FontStyle.italic,
               ),
-              Divider(),
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  padding: EdgeInsets.all(20),
-                  itemCount: symptoms.length,
-                  itemBuilder: (context, index) => _buildSymptomItem(symptoms[index]),
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  Future<List<Map<String, dynamic>>> _fetchSymptoms(String cycleId, String startDate, String? endDate) async {
+  Future<List<Map<String, dynamic>>> _fetchSymptoms(String startDate, String? endDate) async {
     try {
-      final allSymptoms = await _apiService.getSymptoms();
+      final allSymptoms = await _apiService.getSymptomLogs();
+      
       final startDateTime = DateTime.parse(startDate);
-      final endDateToUse = endDate != null ? DateTime.parse(endDate) : DateTime.now().add(Duration(days: 1));
+      final endDateToUse = endDate != null 
+          ? DateTime.parse(endDate) 
+          : DateTime.now().add(Duration(days: 1));
       
       final filtered = allSymptoms.where((symptom) {
         final symptomDate = DateTime.parse(symptom['date']);
         return !symptomDate.isBefore(startDateTime) && !symptomDate.isAfter(endDateToUse);
       }).toList();
       
-      filtered.sort((a, b) => DateTime.parse(b['date']).compareTo(DateTime.parse(a['date'])));
+      filtered.sort((a, b) => DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])));
       
       return filtered.cast<Map<String, dynamic>>();
     } catch (e) {
@@ -658,42 +640,40 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
     }
   }
 
-  void _showEditSymptomDialog(Map<String, dynamic> symptom) {
-    final symptomId = symptom['_id'] ?? symptom['id'];
-    final date = DateTime.parse(symptom['date']);
+  void _showEditSymptomDialog(String symptomId, Map<String, dynamic> symptomData) {
     Map<String, double> symptoms = {};
     
-    (symptom['symptoms'] as Map<String, dynamic>?)?.forEach((key, value) {
-      double parsedValue = (value is num) ? value.toDouble() : double.tryParse(value.toString()) ?? 0.0;
-      symptoms[key] = parsedValue.clamp(0.0, 10.0);
-    });
+    if (symptomData['symptoms'] != null) {
+      final rawSymptoms = symptomData['symptoms'] as Map<String, dynamic>;
+      rawSymptoms.forEach((key, value) {
+        symptoms[key] = (value is int) ? value.toDouble() : (value as num).toDouble();
+      });
+    } else {
+      symptoms = {
+        'mood': 3.0,
+        'cramps': 0.0,
+        'energy': 3.0,
+        'bloating': 0.0,
+        'headache': 0.0,
+      };
+    }
+
+    double sleepHours = (symptomData['sleepHours'] ?? 7.0) is int 
+        ? (symptomData['sleepHours'] as int).toDouble() 
+        : (symptomData['sleepHours'] ?? 7.0) as double;
     
-    final sleepHoursValue = symptom['sleep_hours'] ?? symptom['sleepHours'] ?? 7.0;
-    double sleepHours = (sleepHoursValue is num) ? sleepHoursValue.toDouble() : double.tryParse(sleepHoursValue.toString()) ?? 7.0;
-    sleepHours = sleepHours.clamp(0.0, 12.0);
+    int stressLevel = (symptomData['stressLevel'] ?? 0) is int 
+        ? symptomData['stressLevel'] as int 
+        : ((symptomData['stressLevel'] ?? 0) as num).toInt();
     
-    final stressLevelValue = symptom['stress_level'] ?? symptom['stressLevel'] ?? 0;
-    int stressLevel = (stressLevelValue is num) ? stressLevelValue.toInt() : int.tryParse(stressLevelValue.toString()) ?? 0;
-    stressLevel = stressLevel.clamp(0, 5);
-    
-    String notes = symptom['notes']?.toString() ?? '';
+    String notes = symptomData['notes'] ?? '';
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Edit Symptoms', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textDark)),
-              SizedBox(height: 4),
-              Text(
-                DateFormat('MMMM dd, yyyy').format(date),
-                style: TextStyle(fontSize: 14, color: AppTheme.textGray, fontWeight: FontWeight.normal),
-              ),
-            ],
-          ),
+          title: Text('Edit Symptoms', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textDark)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -799,43 +779,126 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
     );
   }
 
-  void _showEditCycleDialog(Map<String, dynamic> cycle, CycleProvider cycleProvider) {
-    final cycleId = cycle['_id'] ?? cycle['id'];
-    String flow = cycle['flow'] ?? 'medium';
-    String notes = cycle['notes'] ?? '';
+  // NEW: Show dialog to edit individual flow days
+  void _showEditFlowDaysDialog(String cycleId, String startDate, String? endDate, String? cycleNotes, CycleProvider cycleProvider) async {
+    // Fetch period days first
+    final periodDays = await _fetchPeriodDays(startDate, endDate);
+    
+    if (periodDays.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No flow days found for this cycle'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Create a map to track flow changes
+    Map<String, String> flowChanges = {};
+    periodDays.forEach((day) {
+      flowChanges[day['_id'] ?? day['id']] = day['flow'] ?? 'medium';
+    });
+
+    String notes = cycleNotes ?? '';
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Edit Cycle', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textDark)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Flow', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-              SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: flow,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          title: Text('Edit Flow Days', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select flow intensity for each day:',
+                  style: TextStyle(fontSize: 14, color: AppTheme.textGray, fontWeight: FontWeight.w600),
                 ),
-                items: ['light', 'medium', 'heavy'].map((f) => DropdownMenuItem(value: f, child: Text(_capitalizeFirst(f)))).toList(),
-                onChanged: (value) => setState(() => flow = value!),
-              ),
-              SizedBox(height: 16),
-              TextField(
-                controller: TextEditingController(text: notes),
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Notes',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                SizedBox(height: 16),
+                ...periodDays.map((day) {
+                  final dayId = day['_id'] ?? day['id'];
+                  final date = DateTime.parse(day['date']);
+                  final currentFlow = flowChanges[dayId] ?? 'medium';
+                  
+                  return Container(
+                    margin: EdgeInsets.only(bottom: 12),
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryPink.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.primaryPink.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today, size: 16, color: AppTheme.primaryPink),
+                            SizedBox(width: 8),
+                            Text(
+                              DateFormat('MMM dd, yyyy').format(date),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        SegmentedButton<String>(
+                          segments: [
+                            ButtonSegment(
+                              value: 'light',
+                              label: Text('Light', style: TextStyle(fontSize: 12)),
+                              icon: Icon(Icons.water_drop_outlined, size: 16),
+                            ),
+                            ButtonSegment(
+                              value: 'medium',
+                              label: Text('Medium', style: TextStyle(fontSize: 12)),
+                              icon: Icon(Icons.water_drop, size: 16),
+                            ),
+                            ButtonSegment(
+                              value: 'heavy',
+                              label: Text('Heavy', style: TextStyle(fontSize: 12)),
+                              icon: Icon(Icons.water_drop, size: 18),
+                            ),
+                          ],
+                          selected: {currentFlow},
+                          onSelectionChanged: (Set<String> newSelection) {
+                            setState(() {
+                              flowChanges[dayId] = newSelection.first;
+                            });
+                          },
+                          style: ButtonStyle(
+                            backgroundColor: MaterialStateProperty.resolveWith((states) {
+                              if (states.contains(MaterialState.selected)) {
+                                return AppTheme.primaryPink.withOpacity(0.2);
+                              }
+                              return null;
+                            }),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                SizedBox(height: 16),
+                TextField(
+                  controller: TextEditingController(text: notes),
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Cycle Notes',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    hintText: 'Add notes about this cycle...',
+                  ),
+                  onChanged: (value) => notes = value,
                 ),
-                onChanged: (value) => notes = value,
-              ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -849,19 +912,56 @@ class _CycleManagementScreenState extends State<CycleManagementScreen> {
               ),
               onPressed: () async {
                 Navigator.pop(context);
+                
                 try {
-                  await _apiService.updateCycle(id: cycleId, flow: flow, notes: notes.isEmpty ? null : notes);
+                  // Update each period day's flow
+                  for (var entry in flowChanges.entries) {
+                    final dayId = entry.key;
+                    final newFlow = entry.value;
+                    
+                    // Find the original day to see if flow changed
+                    final originalDay = periodDays.firstWhere(
+                      (day) => (day['_id'] ?? day['id']) == dayId,
+                      orElse: () => {},
+                    );
+                    
+                    if (originalDay.isNotEmpty && originalDay['flow'] != newFlow) {
+                      await _apiService.updatePeriodDay(
+                        id: dayId,
+                        flow: newFlow,
+                      );
+                    }
+                  }
+                  
+                  // Update cycle notes if changed
+                  if (notes != cycleNotes) {
+                    await _apiService.updateCycle(
+                      id: cycleId,
+                      notes: notes.isEmpty ? null : notes,
+                    );
+                  }
+                  
+                  // Reload cycles to reflect changes
                   await cycleProvider.loadCycles();
+                  
+                  setState(() {});
+                  
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Cycle updated'), backgroundColor: Colors.green),
+                    SnackBar(
+                      content: Text('Flow days updated successfully'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to update cycle'), backgroundColor: Colors.red),
+                    SnackBar(
+                      content: Text('Failed to update flow days'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               },
-              child: Text('Save', style: TextStyle(color: Colors.white)),
+              child: Text('Save Changes', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),

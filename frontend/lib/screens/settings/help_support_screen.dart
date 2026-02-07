@@ -24,8 +24,8 @@ class HelpSupportScreen extends StatelessWidget {
       'answer': 'There are 4 phases:\n\n• Menstrual (Days 1-5): Your period\n• Follicular (Days 6-13): Energy building\n• Ovulation (Days 14-17): Peak fertility\n• Luteal (Days 18-28): Body preparing',
     },
     {
-      'question': 'How does the panda companion work?',
-      'answer': 'The panda mascot changes expressions based on your cycle phase and shows your progress. It provides motivational messages and makes tracking more fun!',
+      'question': 'How does the cuterus companion work?',
+      'answer': 'The custerus mascot changes expressions based on your cycle phase and shows your progress. It provides motivational/emotional messages and makes tracking more fun!',
     },
     {
       'question': 'Can I track symptoms?',
