@@ -108,30 +108,66 @@ class AIInsightsCard extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Prediction Section
-          if (insights!['prediction'] != null) ...[
-            _buildPredictionSection(context, insights!['prediction']),
+          if (_getPredictionData() != null) ...[
+            _buildPredictionSection(context, _getPredictionData()!),
             const SizedBox(height: 20),
           ],
 
           // Anomaly Section
-          if (insights!['anomaly'] != null && insights!['anomaly']['detected'] == true) ...[
-            _buildAnomalySection(context, insights!['anomaly']),
+          if (_getAnomalyData() != null) ...[
+            _buildAnomalySection(context, _getAnomalyData()!),
             const SizedBox(height: 20),
           ],
 
           // Cycle Insights
-          if (insights!['cycleInsights'] != null) ...[
-            _buildCycleInsightsSection(context, insights!['cycleInsights']),
+          if (_getCycleInsightsData() != null) ...[
+            _buildCycleInsightsSection(context, _getCycleInsightsData()!),
             const SizedBox(height: 20),
           ],
 
           // Recommendations
-          if (insights!['recommendations'] != null) ...[
-            _buildRecommendationsSection(context, insights!['recommendations']),
+          if (_getRecommendationsData() != null) ...[
+            _buildRecommendationsSection(context, _getRecommendationsData()!),
           ],
         ],
       ),
     ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2);
+  }
+
+  Map<String, dynamic>? _getPredictionData() {
+    if (insights == null) return null;
+    final prediction = insights!['prediction'];
+    if (prediction is Map<String, dynamic>) {
+      return prediction;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _getAnomalyData() {
+    if (insights == null) return null;
+    final anomaly = insights!['anomaly'];
+    if (anomaly is Map<String, dynamic> && anomaly['detected'] == true) {
+      return anomaly;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _getCycleInsightsData() {
+    if (insights == null) return null;
+    final cycleInsights = insights!['cycleInsights'];
+    if (cycleInsights is Map<String, dynamic>) {
+      return cycleInsights;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _getRecommendationsData() {
+    if (insights == null) return null;
+    final recommendations = insights!['recommendations'];
+    if (recommendations is Map<String, dynamic>) {
+      return recommendations;
+    }
+    return null;
   }
 
   Widget _buildPredictionSection(BuildContext context, Map<String, dynamic> prediction) {
@@ -170,7 +206,7 @@ class AIInsightsCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     Text(
-                      _formatDate(nextPeriodDate),
+                      _formatDate(nextPeriodDate.toString()),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: AppTheme.primaryPink,
                         fontWeight: FontWeight.bold,
@@ -228,17 +264,17 @@ class AIInsightsCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _getQualityColor(quality).withOpacity(0.2),
+                      color: _getQualityColor(quality.toString()).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: _getQualityColor(quality),
+                        color: _getQualityColor(quality.toString()),
                         width: 1,
                       ),
                     ),
                     child: Text(
-                      quality,
+                      quality.toString(),
                       style: TextStyle(
-                        color: _getQualityColor(quality),
+                        color: _getQualityColor(quality.toString()),
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
@@ -254,8 +290,8 @@ class AIInsightsCard extends StatelessWidget {
   }
 
   Widget _buildAnomalySection(BuildContext context, Map<String, dynamic> anomaly) {
-    final severity = anomaly['severity'] ?? 'none';
-    final description = anomaly['description'] ?? 'Unusual pattern detected';
+    final description = anomaly['description'] ?? 'Cycle pattern anomaly detected';
+    final severity = anomaly['severity'] ?? 'moderate';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -272,12 +308,8 @@ class AIInsightsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                color: AppTheme.warning,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
+              Icon(Icons.warning_amber_rounded, color: AppTheme.warning, size: 24),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Cycle Anomaly Detected',
@@ -290,13 +322,13 @@ class AIInsightsCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getSeverityColor(severity).withOpacity(0.2),
+                  color: _getSeverityColor(severity.toString()).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  severity.toUpperCase(),
+                  severity.toString().toUpperCase(),
                   style: TextStyle(
-                    color: _getSeverityColor(severity),
+                    color: _getSeverityColor(severity.toString()),
                     fontWeight: FontWeight.bold,
                     fontSize: 10,
                   ),
@@ -306,10 +338,10 @@ class AIInsightsCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            description,
+            description.toString(),
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          if (severity == 'significant') ...[
+          if (severity.toString() == 'significant') ...[
             const SizedBox(height: 12),
             Text(
               '💡 Tip: Consider consulting with a healthcare provider if this pattern continues.',
@@ -326,7 +358,6 @@ class AIInsightsCard extends StatelessWidget {
   Widget _buildCycleInsightsSection(BuildContext context, Map<String, dynamic> cycleInsights) {
     final avgLength = cycleInsights['averageCycleLength'];
     final regularity = cycleInsights['regularityScore'];
-    final variability = cycleInsights['variability'];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -400,9 +431,16 @@ class AIInsightsCard extends StatelessWidget {
   }
 
   Widget _buildRecommendationsSection(BuildContext context, Map<String, dynamic> recommendations) {
-    final priority = recommendations['priority'] as List<dynamic>? ?? [];
+    final priority = recommendations['priority'];
     
-    if (priority.isEmpty) return const SizedBox.shrink();
+    List<dynamic> priorityList = [];
+    if (priority is List) {
+      priorityList = priority;
+    } else if (priority is Map) {
+      priorityList = [priority];
+    }
+    
+    if (priorityList.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,15 +456,23 @@ class AIInsightsCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        ...priority.take(3).map((rec) => _buildRecommendationItem(context, rec)).toList(),
+        ...priorityList.take(3).map((rec) => _buildRecommendationItem(context, rec)).toList(),
       ],
     );
   }
 
   Widget _buildRecommendationItem(BuildContext context, dynamic recommendation) {
-    final title = recommendation['title'] ?? '';
-    final description = recommendation['description'] ?? '';
-    final priorityLevel = recommendation['priority'] ?? 'medium';
+    String title = '';
+    String description = '';
+    String priorityLevel = 'medium';
+    
+    if (recommendation is Map<String, dynamic>) {
+      title = recommendation['title']?.toString() ?? '';
+      description = recommendation['description']?.toString() ?? '';
+      priorityLevel = recommendation['priority']?.toString() ?? 'medium';
+    } else if (recommendation is String) {
+      title = recommendation;
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
