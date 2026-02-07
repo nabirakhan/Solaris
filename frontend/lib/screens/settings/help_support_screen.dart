@@ -90,7 +90,7 @@ class HelpSupportScreen extends StatelessWidget {
                       onTap: () async {
                         final Uri emailUri = Uri(
                           scheme: 'mailto',
-                          path: 'support@solaris.com',
+                          path: 'solarisappofficial@gmail.com',
                           query: 'subject=Solaris Support Request',
                         );
                         if (await canLaunchUrl(emailUri)) {

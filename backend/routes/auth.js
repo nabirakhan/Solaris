@@ -1,5 +1,6 @@
 // File: backend/routes/auth.js
-
+const supabaseStorage = require('../services/supabaseStorage');
+const fs = require('fs').promises;
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
@@ -486,47 +487,60 @@ router.post('/profile/picture', auth, upload.single('picture'), async (req, res)
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    // Store relative URL in database (IMPORTANT: This persists correctly)
-    const relativeUrl = `/uploads/profiles/${req.file.filename}`;
+    // Read file buffer from temporary upload
+    const fileBuffer = await fs.readFile(req.file.path);
     
-    // Create full URL for response
-    const fullImageUrl = `https://solaris-vhc8.onrender.com${relativeUrl}`;
-    
-    console.log('📸 Relative URL (stored in DB):', relativeUrl);
-    console.log('📸 Full URL (returned to client):', fullImageUrl);
+    console.log('📤 Uploading to Supabase Storage...');
 
-    // Update user's profile picture in database with RELATIVE URL
-    // This is key - we store the relative path, not the full URL
+    // Upload to Supabase Storage (permanent cloud storage)
+    const publicUrl = await supabaseStorage.uploadProfilePicture(
+      req.userId,
+      fileBuffer,
+      req.file.originalname,
+      req.file.mimetype
+    );
+
+    // Delete temporary file from Render's ephemeral storage
+    await fs.unlink(req.file.path).catch(err => {
+      console.error('⚠️ Failed to delete temp file:', err);
+    });
+
+    console.log('💾 Updating database with Supabase URL...');
+
+    // Update user's profile picture in database with Supabase URL
     const user = await User.update(req.userId, {
-      profile_picture: relativeUrl  // Store relative path
+      profile_picture: publicUrl  // Store Supabase URL
     });
 
     if (!user) {
-      // Clean up uploaded file if user not found
-      await fs.unlink(req.file.path).catch(console.error);
       return res.status(404).json({ error: 'User not found' });
     }
 
-    console.log('✅ Profile picture updated in database');
-    console.log('✅ Stored value:', relativeUrl);
+    console.log('✅ Profile picture updated successfully');
+    console.log('✅ Supabase URL:', publicUrl);
 
-    // Return full URL in response for immediate use
+    // Return response
     res.status(200).json({
       success: true,
       message: 'Profile picture uploaded successfully',
-      photoUrl: fullImageUrl,  // Full URL for immediate use
-      user: formatUserResponse(user)  // ✅ UPDATED: Using formatUserResponse
+      photoUrl: publicUrl,  // Full Supabase URL
+      user: formatUserResponse(user)
     });
 
   } catch (error) {
-    console.error('❌ Profile picture upload error:', error);
+    console.error('❌ Error uploading profile picture:', error);
     
-    // Clean up uploaded file on error
-    if (req.file) {
-      await fs.unlink(req.file.path).catch(console.error);
+    // Clean up temporary file on error
+    if (req.file && req.file.path) {
+      await fs.unlink(req.file.path).catch(err => {
+        console.error('⚠️ Failed to delete temp file on error:', err);
+      });
     }
 
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: 'Failed to upload profile picture',
+      details: error.message 
+    });
   }
 });
 
