@@ -44,52 +44,44 @@ class ApiService {
   }
   
   // ============================================================================
-  // AUTHENTICATION WITH OTP
+  // AUTHENTICATION
   // ============================================================================
   
   Future<Map<String, dynamic>> signup({
-  required String email,
-  required String password,
-  required String name,
-  String? dateOfBirth,
-}) async {
-  print('📝 Signing up: $email');
-  
-  final response = await http.post(
-    Uri.parse('${AppConstants.apiBaseUrl}/auth/signup'),
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({
-      'email': email,
-      'password': password,
-      'name': name,
-      if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
-    }),
-  );
-  
-  print('📝 Signup response: ${response.statusCode}');
-  print('📝 Signup body: ${response.body}');
-  
-  if (response.statusCode == 201) {
-    final data = jsonDecode(response.body);
-    return data;
-  } else {
-    final error = jsonDecode(response.body);
-    // Create a custom exception that preserves the full error data
-    final errorData = {
-      'error': error['error'] ?? 'Signup failed',
-      if (error['userId'] != null) 'userId': error['userId'],
-      if (error['emailVerified'] != null) 'emailVerified': error['emailVerified'],
-    };
-    throw Exception(jsonEncode(errorData)); // Pass as JSON string
+    required String email,
+    required String password,
+    required String name,
+    String? dateOfBirth,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.apiBaseUrl}/auth/signup'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+        'name': name,
+        if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
+      }),
+    );
+    
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+      return data;
+    } else {
+      final error = jsonDecode(response.body);
+      final errorData = {
+        'error': error['error'] ?? 'Signup failed',
+        if (error['userId'] != null) 'userId': error['userId'],
+        if (error['emailVerified'] != null) 'emailVerified': error['emailVerified'],
+      };
+      throw Exception(jsonEncode(errorData));
+    }
   }
-}
   
   Future<Map<String, dynamic>> verifyOTP({
     required String email,
     required String otp,
   }) async {
-    print('🔐 Verifying OTP for: $email');
-    
     final response = await http.post(
       Uri.parse('${AppConstants.apiBaseUrl}/auth/verify-otp'),
       headers: {'Content-Type': 'application/json'},
@@ -99,15 +91,11 @@ class ApiService {
       }),
     );
     
-    print('🔐 OTP verification response: ${response.statusCode}');
-    print('🔐 OTP verification body: ${response.body}');
-    
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       
       if (data['token'] != null) {
         await saveToken(data['token']);
-        print('✅ Token saved after OTP verification');
       }
       
       if (data['user']?['profilePicture'] != null) {
@@ -122,16 +110,11 @@ class ApiService {
   }
   
   Future<Map<String, dynamic>> resendOTP(String email) async {
-    print('📧 Resending OTP to: $email');
-    
     final response = await http.post(
       Uri.parse('${AppConstants.apiBaseUrl}/auth/resend-otp'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email}),
     );
-    
-    print('📧 Resend OTP response: ${response.statusCode}');
-    print('📧 Resend OTP body: ${response.body}');
     
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -178,12 +161,6 @@ class ApiService {
     required String idToken,
     String? accessToken,
   }) async {
-    print('🔍 [API DEBUG] Sending Google sign-in to backend...');
-    print('📧 Email: $email');
-    print('👤 Name: $name');
-    print('🆔 Google ID: $googleId');
-    print('🔑 ID Token present: ${idToken.isNotEmpty}');
-    
     final response = await http.post(
       Uri.parse('${AppConstants.apiBaseUrl}/auth/google/mobile'),
       headers: {'Content-Type': 'application/json'},
@@ -196,9 +173,6 @@ class ApiService {
         'accessToken': accessToken,
       }),
     );
-    
-    print('🔍 [API DEBUG] Backend response: ${response.statusCode}');
-    print('🔍 [API DEBUG] Backend body: ${response.body}');
     
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -236,20 +210,13 @@ class ApiService {
   
   Future<Map<String, dynamic>?> uploadProfilePicture(File imageFile) async {
     try {
-      print('📸 Upload starting...');
-      print('📸 File path: ${imageFile.path}');
-      print('📸 File exists: ${await imageFile.exists()}');
-      
       final headers = await _getHeaders();
-      print('📸 Auth headers obtained');
-      headers.remove('Content-Type'); // Let multipart set this
+      headers.remove('Content-Type');
       
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('${AppConstants.apiBaseUrl}/auth/profile/picture'),
       );
-      
-      print('📸 Request URL: ${AppConstants.apiBaseUrl}/auth/profile/picture');
       
       request.headers.addAll(headers);
       request.files.add(
@@ -260,32 +227,21 @@ class ApiService {
         ),
       );
       
-      print('📸 Sending request...');
       final streamedResponse = await request.send();
-      print('📸 Response status code: ${streamedResponse.statusCode}');
-      
       final response = await http.Response.fromStream(streamedResponse);
-      print('📸 Response body: ${response.body}');
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        print('✅ Upload successful! Data: $data');
         
-        // Save the profile picture URL to SharedPreferences
         if (data['photoUrl'] != null) {
           await saveProfilePictureUrl(data['photoUrl']);
-          print('✅ Profile picture URL saved: ${data['photoUrl']}');
         }
         
         return data;
       } else {
-        print('❌ Upload failed with status: ${response.statusCode}');
-        print('❌ Response: ${response.body}');
         return null;
       }
-    } catch (e, stackTrace) {
-      print('❌ Upload error: $e');
-      print('❌ Stack trace: $stackTrace');
+    } catch (e) {
       return null;
     }
   }
@@ -460,6 +416,10 @@ class ApiService {
     }
   }
   
+  Future<List<dynamic>> getSymptomLogs() async {
+    return await getSymptoms();
+  }
+  
   Future<Map<String, dynamic>> logSymptoms({
     required String date,
     required Map<String, int> symptoms,
@@ -549,18 +509,13 @@ class ApiService {
         headers: await _getHeaders(),
       );
 
-      print('🤖 [API] AI Analysis request status: ${response.statusCode}');
-      print('🤖 [API] AI Analysis response: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         return data;
       } else {
-        print('⚠️ [API] AI Analysis endpoint not available, returning mock data');
         return _generateMockAIData();
       }
     } catch (e) {
-      print('❌ [API] AI Analysis error: $e');
       return _generateMockAIData();
     }
   }
@@ -611,12 +566,6 @@ class ApiService {
     required double weight,
     required bool useMetric,
   }) async {
-    print('🏥 [API] Saving health metrics...');
-    print('🏥 [API] Birthdate: $birthdate');
-    print('🏥 [API] Height: $height');
-    print('🏥 [API] Weight: $weight');
-    print('🏥 [API] UseMetric: $useMetric');
-    
     final response = await http.post(
       Uri.parse('${AppConstants.apiBaseUrl}/health/metrics'),
       headers: await _getHeaders(),
@@ -628,9 +577,6 @@ class ApiService {
       }),
     );
     
-    print('🏥 [API] Response status: ${response.statusCode}');
-    print('🏥 [API] Response body: ${response.body}');
-    
     if (response.statusCode == 201 || response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return data['metrics'] ?? data;
@@ -638,15 +584,6 @@ class ApiService {
       final error = jsonDecode(response.body);
       throw Exception(error['error'] ?? 'Failed to save health metrics');
     }
-  }
-  
-  Future<Map<String, dynamic>> logHealthMetrics({
-    required double weight,
-    required double height,
-    double? temperature,
-    int? heartRate,
-  }) async {
-    throw Exception('Use saveHealthMetrics instead of logHealthMetrics');
   }
   
   // ============================================================================
@@ -711,7 +648,5 @@ class ApiService {
         print('Cycle deletion skipped: $e');
       }
     }
-    
-    print('✅ All user data deleted successfully');
   }
 }

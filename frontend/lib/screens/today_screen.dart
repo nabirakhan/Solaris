@@ -23,8 +23,6 @@ class _TodayScreenState extends State<TodayScreen>
   int _currentRecommendationPage = 0;
   bool _isRefreshing = false;
 
-  Map<int, bool> _expandedCards = {};
-
   @override
   void initState() {
     super.initState();
@@ -49,7 +47,6 @@ class _TodayScreenState extends State<TodayScreen>
       }
     });
 
-    // Load data on init
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
@@ -184,7 +181,6 @@ class _TodayScreenState extends State<TodayScreen>
 
                       SizedBox(height: 24),
 
-                      // AI Insights Card
                       _buildAIInsightsSection()
                           .animate()
                           .fadeIn(duration: 600.ms, delay: 300.ms)
@@ -242,10 +238,8 @@ class _TodayScreenState extends State<TodayScreen>
     return Consumer<CycleProvider>(
       builder: (context, provider, child) {
         final phase = provider.currentPhase;
-        // ✅ FIX #4: Calculate days since start properly, default to 1 instead of 0
         int daysSinceStart = provider.daysSinceStart;
 
-        // If daysSinceStart is 0 and we have an active cycle, calculate manually
         if (daysSinceStart == 0 && provider.hasActiveCycle) {
           try {
             final currentCycle = provider.currentCycle;
@@ -255,16 +249,14 @@ class _TodayScreenState extends State<TodayScreen>
               if (startDate != null) {
                 final start = DateTime.parse(startDate.toString());
                 final now = DateTime.now();
-                daysSinceStart = now.difference(start).inDays +
-                    1; // +1 because day 1 is the start day
+                daysSinceStart = now.difference(start).inDays + 1;
               }
             }
           } catch (e) {
-            daysSinceStart = 1; // Default to day 1 if calculation fails
+            daysSinceStart = 1;
           }
         }
 
-        // Ensure minimum day is 1 if there's an active cycle
         if (provider.hasActiveCycle && daysSinceStart < 1) {
           daysSinceStart = 1;
         }
@@ -358,29 +350,25 @@ class _TodayScreenState extends State<TodayScreen>
           padding: EdgeInsets.symmetric(horizontal: 20),
           child: GlassCard(
             margin: EdgeInsets.zero,
-            padding: EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12), // ✅ FIX #1: Reduced vertical padding
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Column(
-              mainAxisSize: MainAxisSize
-                  .min, // ✅ FIX #1: Don't take more space than needed
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // ✅ FIX #2: Use adorable Cuterus mascot
                 CuterusMascot(phase: phase),
-                SizedBox(height: 8), // ✅ FIX #1: Reduced spacing
+                SizedBox(height: 8),
                 Text(
                   'Meet Cuterus! 💖',
                   style: TextStyle(
-                    fontSize: 16, // ✅ FIX #1: Slightly smaller font
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textDark,
                   ),
                 ),
-                SizedBox(height: 4), // ✅ FIX #1: Reduced spacing
+                SizedBox(height: 4),
                 Text(
                   'Your personal uterus companion',
                   style: TextStyle(
-                    fontSize: 13, // ✅ FIX #1: Smaller font
+                    fontSize: 13,
                     color: AppTheme.textGray,
                   ),
                   textAlign: TextAlign.center,
@@ -513,8 +501,7 @@ class _TodayScreenState extends State<TodayScreen>
             ),
             SizedBox(height: 16),
             SizedBox(
-              height:
-                  165, // ✅ FIX #1: Reduced from 200 to 165 for more compact cards
+              height: 200,
               child: PageView.builder(
                 controller: _recommendationsController,
                 itemCount: recommendations.length,
@@ -554,100 +541,58 @@ class _TodayScreenState extends State<TodayScreen>
     Map<String, dynamic> recommendation,
     int index,
   ) {
-    // ✅ FIX #1: Check if card is expanded
-    final isExpanded = _expandedCards[index] ?? false;
-
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 8),
-      child: GestureDetector(
-        // ✅ FIX #1: Make card tappable to expand/collapse
-        onTap: () {
-          setState(() {
-            _expandedCards[index] = !isExpanded;
-          });
-        },
-        child: AnimatedContainer(
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          child: GlassCard(
-            margin: EdgeInsets.zero,
-            padding: EdgeInsets.all(16), // ✅ FIX #1: Reduced from 20 to 16
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: GlassCard(
+        margin: EdgeInsets.zero,
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color:
-                            (recommendation['color'] as Color).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        recommendation['icon'] as IconData,
-                        color: recommendation['color'] as Color,
-                        size: 24,
-                      ),
-                    ),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            recommendation['title'],
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textDark,
-                            ),
-                          ),
-                          // ✅ FIX #1: Show description conditionally
-                          SizedBox(height: 8),
-                          AnimatedCrossFade(
-                            firstChild: Text(
-                              recommendation['description'],
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppTheme.textGray,
-                                height: 1.4,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            secondChild: Text(
-                              recommendation['description'],
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppTheme.textGray,
-                                height: 1.4,
-                              ),
-                            ),
-                            crossFadeState: isExpanded
-                                ? CrossFadeState.showSecond
-                                : CrossFadeState.showFirst,
-                            duration: Duration(milliseconds: 200),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                // ✅ FIX #1: Add tap hint icon
-                SizedBox(height: 8),
-                Center(
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: (recommendation['color'] as Color).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Icon(
-                    isExpanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    size: 20,
-                    color: AppTheme.textGray.withOpacity(0.5),
+                    recommendation['icon'] as IconData,
+                    color: recommendation['color'] as Color,
+                    size: 24,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        recommendation['title'],
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        recommendation['description'],
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textGray,
+                          height: 1.4,
+                        ),
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );

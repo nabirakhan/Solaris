@@ -1,4 +1,3 @@
-// File: lib/screens/timeline_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -7,7 +6,7 @@ import '../providers/cycle_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/animated_background.dart';
-import 'cycle_management_screen.dart'; // Add this import
+import 'cycle_management_screen.dart';
 import 'log_screen.dart';
 
 class TimelineScreen extends StatefulWidget {
@@ -124,7 +123,6 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
             ],
           ),
           Spacer(),
-          // Add button to view all cycles
           IconButton(
             icon: Icon(Icons.list, color: AppTheme.primaryPink),
             onPressed: () {
@@ -260,25 +258,28 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
     
     List<Widget> dayWidgets = [];
     
-    // Add empty cells for days before the month starts
     for (int i = 0; i < startWeekday; i++) {
       dayWidgets.add(Expanded(child: SizedBox()));
     }
     
-    // Add day cells
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_selectedMonth.year, _selectedMonth.month, day);
       dayWidgets.add(_buildDayCell(day, date, provider));
     }
     
-    // Build rows of 7 days
+    final remainingCells = (7 - (dayWidgets.length % 7)) % 7;
+    for (int i = 0; i < remainingCells; i++) {
+      dayWidgets.add(Expanded(child: SizedBox()));
+    }
+    
     List<Widget> rows = [];
     for (int i = 0; i < dayWidgets.length; i += 7) {
+      final rowWidgets = dayWidgets.skip(i).take(7).toList();
       rows.add(
         Padding(
           padding: EdgeInsets.symmetric(vertical: 4),
           child: Row(
-            children: dayWidgets.skip(i).take(7).toList(),
+            children: rowWidgets,
           ),
         ),
       );
@@ -334,8 +335,6 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
   Widget _buildCycleHistory() {
     return Consumer<CycleProvider>(
       builder: (context, provider, child) {
-        print('Building cycle history, total cycles: ${provider.cycles.length}');
-        
         if (provider.cycles.isEmpty) {
           return _buildEmptyState();
         }
@@ -344,8 +343,6 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
           final startDate = cycle['start_date'] ?? cycle['startDate'];
           return startDate != null && startDate.toString().isNotEmpty;
         }).toList();
-        
-        print('Valid cycles: ${validCycles.length}');
         
         if (validCycles.isEmpty) {
           return _buildEmptyState();
@@ -392,7 +389,6 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
   }
 
   Widget _buildCycleCard(Map<String, dynamic> cycle, int index, CycleProvider cycleProvider) {
-    // Handle both snake_case and camelCase field names
     final startDateString = (cycle['start_date'] ?? cycle['startDate'])?.toString();
     final endDateString = (cycle['end_date'] ?? cycle['endDate'])?.toString();
     final flow = cycle['flow']?.toString() ?? 'medium';
@@ -438,14 +434,20 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
                     ],
                   ),
                   child: Center(
-                    child: Text(
-                      length != null ? '$length' : '?',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                    child: length != null
+                      ? Text(
+                          '$length',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Icon(
+                          Icons.autorenew,
+                          color: Colors.white,
+                          size: 28,
+                        ),
                   ),
                 ),
                 SizedBox(width: 16),
@@ -541,10 +543,8 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
               textAlign: TextAlign.center,
             ).animate().fadeIn(duration: 600.ms, delay: 400.ms),
             SizedBox(height: 24),
-            // Add a button to go to log screen
             ElevatedButton.icon(
               onPressed: () {
-                // Navigate to log screen
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -566,7 +566,6 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
   }
 
   bool _isPeriodDay(CycleProvider provider, DateTime date) {
-    // Normalize the date to midnight for comparison
     final checkDate = DateTime(date.year, date.month, date.day);
     
     for (var cycle in provider.cycles) {
@@ -589,7 +588,6 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
             return true;
           }
         } else {
-          // If no end date, assume period lasts 5 days
           final estimatedEnd = normalizedStart.add(Duration(days: 5));
           
           if (!checkDate.isBefore(normalizedStart) && checkDate.isBefore(estimatedEnd)) {
@@ -611,7 +609,6 @@ class _TimelineScreenState extends State<TimelineScreen> with SingleTickerProvid
            date.day == now.day;
   }
 
-  // Navigation method to Cycle Management Screen
   void _navigateToCycleManagement(BuildContext context) {
     Navigator.push(
       context,
